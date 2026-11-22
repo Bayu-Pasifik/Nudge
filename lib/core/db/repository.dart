@@ -473,6 +473,129 @@ class Repository {
         .asyncMap((_) => pinnedStickies());
   }
 
+  // ----------------------------------------------------------------- labels
+
+  Stream<List<Label>> watchLabels(String boardId) {
+    final q = db.select(db.labels)
+      ..where((l) => l.boardId.equals(boardId) & l.deletedAt.isNull())
+      ..orderBy([(l) => OrderingTerm.asc(l.createdAt)]);
+    return q.watch();
+  }
+
+  Stream<List<Label>> watchAllLabels() {
+    final q = db.select(db.labels)..where((l) => l.deletedAt.isNull());
+    return q.watch();
+  }
+
+  Future<String> createLabel(String boardId, String name, int color) async {
+    final id = _uuid.v4();
+    final now = _now();
+    await db.into(db.labels).insert(
+          LabelsCompanion.insert(
+            id: id,
+            boardId: boardId,
+            name: name.trim(),
+            color: color,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    return id;
+  }
+
+  Future<void> updateLabel(String id, {String? name, int? color}) {
+    return (db.update(db.labels)..where((l) => l.id.equals(id))).write(
+      LabelsCompanion(
+        name: name == null ? const Value.absent() : Value(name.trim()),
+        color: color == null ? const Value.absent() : Value(color),
+        updatedAt: Value(_now()),
+        dirty: const Value(true),
+      ),
+    );
+  }
+
+  /// Deleting a label also detaches it from every card.
+  Future<void> deleteLabel(String id) async {
+    final now = _now();
+    await db.transaction(() async {
+      await (db.update(db.labels)..where((l) => l.id.equals(id))).write(
+        LabelsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          dirty: const Value(true),
+        ),
+      );
+      await (db.update(db.cardLabels)..where((c) => c.labelId.equals(id))).write(
+        CardLabelsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          dirty: const Value(true),
+        ),
+      );
+    });
+  }
+
+  /// Every live card <-> label link (for tiles and search).
+  Stream<List<CardLabel>> watchAllCardLabels() {
+    final q = db.select(db.cardLabels)..where((c) => c.deletedAt.isNull());
+    return q.watch();
+  }
+
+  /// Attaches or detaches [labelId] on [cardId]. A previously removed link is
+  /// revived instead of duplicated.
+  Future<void> setCardLabel(String cardId, String labelId, bool on) async {
+    final now = _now();
+    await db.transaction(() async {
+      final existing = await (db.select(db.cardLabels)
+            ..where((c) => c.cardId.equals(cardId) & c.labelId.equals(labelId)))
+          .getSingleOrNull();
+      if (existing == null) {
+        if (!on) return;
+        await db.into(db.cardLabels).insert(
+              CardLabelsCompanion.insert(
+                id: _uuid.v4(),
+                cardId: cardId,
+                labelId: labelId,
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+        return;
+      }
+      await (db.update(db.cardLabels)..where((c) => c.id.equals(existing.id))).write(
+        CardLabelsCompanion(
+          deletedAt: Value(on ? null : now),
+          updatedAt: Value(now),
+          dirty: const Value(true),
+        ),
+      );
+    });
+  }
+
+  /// Every live card (finished ones included) with where it lives; for search.
+  Stream<List<OpenCard>> watchAllCards() {
+    final q = db.select(db.cards).join([
+      innerJoin(db.lists, db.lists.id.equalsExp(db.cards.listId)),
+      innerJoin(db.boards, db.boards.id.equalsExp(db.cards.boardId)),
+    ])
+      ..where(db.cards.deletedAt.isNull() &
+          db.cards.archivedAt.isNull() &
+          db.boards.deletedAt.isNull() &
+          db.boards.archivedAt.isNull() &
+          db.lists.deletedAt.isNull())
+      ..orderBy([OrderingTerm.desc(db.cards.updatedAt)]);
+    return q.watch().map(
+          (rows) => [
+            for (final r in rows)
+              OpenCard(
+                card: r.readTable(db.cards),
+                listTitle: r.readTable(db.lists).title,
+                boardTitle: r.readTable(db.boards).title,
+              ),
+          ],
+        );
+  }
+
   // -------------------------------------------------------------- reminders
 
   Stream<List<Reminder>> watchReminders(String cardId) {

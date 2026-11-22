@@ -20,6 +20,7 @@ class CardTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.tokens;
+    final labels = ref.watch(labelsByCardProvider)[card.id] ?? const <Label>[];
     final done = card.completedAt != null;
     final status = dueStatus(card.dueAt, completed: done);
     final doneItems = checklist.where((i) => i.done).length;
@@ -72,6 +73,26 @@ class CardTile extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (labels.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: [
+                              for (final l in labels)
+                                Container(
+                                  key: Key('tile-label-${l.name}'),
+                                  height: 6,
+                                  width: 32,
+                                  decoration: BoxDecoration(
+                                    color: Color(l.color),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       Text(
                         card.title,
                         maxLines: 3,

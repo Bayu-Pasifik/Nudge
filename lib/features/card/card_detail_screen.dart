@@ -10,6 +10,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 import '../boards/boards_screen.dart' show confirmDialog;
 import 'checklist_section.dart';
+import 'labels_section.dart';
 import 'reminders_section.dart';
 
 class CardDetailScreen extends ConsumerStatefulWidget {
@@ -224,6 +225,11 @@ class _CardDetailScreenState extends ConsumerState<CardDetailScreen> {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
+          _Section(
+            icon: Icons.label_outline,
+            title: 'Label',
+            child: LabelsSection(card: card),
+          ),
           _Section(
             icon: Icons.event,
             title: 'Jatuh tempo',
