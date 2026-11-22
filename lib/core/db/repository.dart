@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../util/position.dart';
+import '../util/repeat.dart';
 import 'database.dart';
 
 const _uuid = Uuid();
@@ -302,8 +303,13 @@ class Repository {
   }
 
   /// Completing a card also settles its reminders so nagging stops.
+  ///
+  /// A card with a *repeating* reminder is never left completed: finishing it
+  /// means "done for this cycle", so it reopens with its reminder and due date
+  /// moved to the next occurrence and its checklist cleared.
   Future<void> setCardCompleted(String id, bool completed) async {
     final now = _now();
+    if (completed && await _advanceRepeating(id, now)) return;
     await db.transaction(() async {
       await (db.update(db.cards)..where((c) => c.id.equals(id))).write(
         CardsCompanion(
@@ -321,6 +327,58 @@ class Repository {
         ),
       );
     });
+  }
+
+  /// Moves a repeating card to its next cycle. Returns false if the card has
+  /// no repeating reminder (the caller then completes it normally).
+  Future<bool> _advanceRepeating(String cardId, DateTime now) async {
+    final repeating = await (db.select(db.reminders)
+          ..where((r) =>
+              r.cardId.equals(cardId) &
+              r.deletedAt.isNull() &
+              r.repeatRule.isNotNull()))
+        .get();
+    if (repeating.isEmpty) return false;
+
+    await db.transaction(() async {
+      for (final r in repeating) {
+        await (db.update(db.reminders)..where((x) => x.id.equals(r.id))).write(
+          RemindersCompanion(
+            remindAt: Value(nextOccurrence(r.remindAt, r.repeatRule!, now: now)),
+            snoozedUntil: const Value(null),
+            nagCount: const Value(0),
+            lastNagAt: const Value(null),
+            state: const Value('scheduled'),
+            updatedAt: Value(now),
+            dirty: const Value(true),
+          ),
+        );
+      }
+      final card =
+          await (db.select(db.cards)..where((c) => c.id.equals(cardId))).getSingle();
+      await (db.update(db.cards)..where((c) => c.id.equals(cardId))).write(
+        CardsCompanion(
+          dueAt: card.dueAt == null
+              ? const Value.absent()
+              : Value(nextOccurrence(card.dueAt!, repeating.first.repeatRule!, now: now)),
+          completedAt: const Value(null),
+          updatedAt: Value(now),
+          dirty: const Value(true),
+        ),
+      );
+      // A new cycle starts with a clean checklist.
+      await (db.update(db.checklistItems)
+            ..where((i) => i.cardId.equals(cardId) & i.deletedAt.isNull()))
+          .write(
+        ChecklistItemsCompanion(
+          done: const Value(false),
+          doneAt: const Value(null),
+          updatedAt: Value(now),
+          dirty: const Value(true),
+        ),
+      );
+    });
+    return true;
   }
 
   Future<void> archiveCard(String id) {

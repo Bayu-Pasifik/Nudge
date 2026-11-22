@@ -8,6 +8,7 @@ import '../../core/nag/providers.dart';
 import '../../core/settings/nag_defaults.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
+import '../../core/util/repeat.dart';
 import 'reminder_sheet.dart';
 
 final remindersProvider =
@@ -45,6 +46,7 @@ class RemindersSection extends ConsumerWidget {
         escalationJson: draft.escalationJson,
         quietStartMinute: draft.quiet ? draft.quietStart : null,
         quietEndMinute: draft.quiet ? draft.quietEnd : null,
+        repeatRule: draft.repeat,
       );
     }
 
@@ -60,6 +62,7 @@ class RemindersSection extends ConsumerWidget {
           quiet: r.quietStartMinute != null,
           quietStart: r.quietStartMinute ?? NagDefaults.quietStart,
           quietEnd: r.quietEndMinute ?? NagDefaults.quietEnd,
+          repeat: r.repeatRule,
         ),
       );
       if (draft == null) return;
@@ -72,6 +75,7 @@ class RemindersSection extends ConsumerWidget {
         escalationJson: Value(draft.escalationJson),
         quietStartMinute: Value(draft.quiet ? draft.quietStart : null),
         quietEndMinute: Value(draft.quiet ? draft.quietEnd : null),
+        repeatRule: Value(draft.repeat),
       );
     }
 
@@ -120,6 +124,7 @@ class RemindersSection extends ConsumerWidget {
 
   String _summary(Reminder r) {
     final parts = <String>[];
+    if (r.repeatRule != null) parts.add(repeatLabel(r.repeatRule));
     if (r.state == 'missed') parts.add('Terlewat');
     if (r.state == 'nagging') parts.add('Sedang mengingatkan');
     if (!r.nagEnabled) {

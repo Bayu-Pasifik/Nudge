@@ -4,6 +4,7 @@ import '../../core/nag/nag_plan.dart';
 import '../../core/settings/nag_defaults.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
+import '../../core/util/repeat.dart';
 
 /// Fallback quiet hours when editing an old reminder that had none.
 class NagDefaults {
@@ -22,6 +23,7 @@ class ReminderDraft {
     this.quiet = true,
     this.quietStart = NagDefaults.quietStart,
     this.quietEnd = NagDefaults.quietEnd,
+    this.repeat,
   });
 
   DateTime remindAt;
@@ -32,6 +34,9 @@ class ReminderDraft {
   bool quiet;
   int quietStart;
   int quietEnd;
+
+  /// null, 'daily', 'weekly' or 'monthly'.
+  String? repeat;
 
   /// A new reminder pre-filled from the user's defaults (Pengaturan).
   factory ReminderDraft.fromDefaults(DateTime when, NagDefaultsState d) =>
@@ -199,6 +204,19 @@ class _ReminderSheetState extends State<_ReminderSheet> {
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
+            const _Label('Ulangi tugas'),
+            Wrap(
+              spacing: AppSpacing.sm,
+              children: [
+                for (final rule in [null, ...repeatRules])
+                  ChoiceChip(
+                    key: Key('repeat-${rule ?? 'none'}'),
+                    label: Text(rule == null ? 'Tidak' : repeatLabel(rule)),
+                    selected: _d.repeat == rule,
+                    onSelected: (_) => setState(() => _d.repeat = rule),
+                  ),
+              ],
+            ),
             SwitchListTile(
               key: const Key('nag-switch'),
               contentPadding: EdgeInsets.zero,
