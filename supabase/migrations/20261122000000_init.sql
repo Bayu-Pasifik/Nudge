@@ -19,6 +19,7 @@ create extension if not exists "pgcrypto";
 create or replace function public.stamp_server_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   if tg_op = 'UPDATE' and new.updated_at < old.updated_at then
@@ -198,6 +199,7 @@ end $$;
 create or replace function public.settle_reminders_on_complete()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   if new.completed_at is not null and old.completed_at is null then
@@ -236,26 +238,31 @@ end $$;
 -- rows to another user's board/list/card just by knowing the UUID. Restrictive
 -- policies are AND-ed with the owner policy above.
 create policy lists_parent on public.lists as restrictive for all to authenticated
+  using (true)
   with check (exists (
     select 1 from public.boards b
      where b.id = board_id and b.user_id = (select auth.uid())));
 
 create policy cards_parent on public.cards as restrictive for all to authenticated
+  using (true)
   with check (exists (
     select 1 from public.lists l
      where l.id = list_id and l.user_id = (select auth.uid())));
 
 create policy checklist_items_parent on public.checklist_items as restrictive for all to authenticated
+  using (true)
   with check (exists (
     select 1 from public.cards c
      where c.id = card_id and c.user_id = (select auth.uid())));
 
 create policy labels_parent on public.labels as restrictive for all to authenticated
+  using (true)
   with check (exists (
     select 1 from public.boards b
      where b.id = board_id and b.user_id = (select auth.uid())));
 
 create policy card_labels_parent on public.card_labels as restrictive for all to authenticated
+  using (true)
   with check (
     exists (select 1 from public.cards c
              where c.id = card_id and c.user_id = (select auth.uid()))
@@ -263,6 +270,7 @@ create policy card_labels_parent on public.card_labels as restrictive for all to
              where l.id = label_id and l.user_id = (select auth.uid())));
 
 create policy reminders_parent on public.reminders as restrictive for all to authenticated
+  using (true)
   with check (exists (
     select 1 from public.cards c
      where c.id = card_id and c.user_id = (select auth.uid())));
