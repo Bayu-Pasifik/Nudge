@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/db/database.dart';
 import '../../core/db/providers.dart';
 import '../../core/nag/providers.dart';
+import '../../core/settings/nag_defaults.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 import 'reminder_sheet.dart';
@@ -25,7 +26,10 @@ class RemindersSection extends ConsumerWidget {
     final repo = ref.read(repositoryProvider);
 
     Future<void> add() async {
-      final draft = await showReminderSheet(context);
+      final draft = await showReminderSheet(
+        context,
+        defaults: ref.read(nagDefaultsProvider),
+      );
       if (draft == null) return;
       // Ask for notification permission the first time it matters.
       final gateway = ref.read(notificationGatewayProvider);

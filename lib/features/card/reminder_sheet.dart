@@ -1,10 +1,11 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/nag/nag_plan.dart';
+import '../../core/settings/nag_defaults.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 
-/// Defaults for a new reminder (Pengaturan can override these later).
+/// Fallback quiet hours when editing an old reminder that had none.
 class NagDefaults {
   static const intervalMinutes = 10;
   static const quietStart = 22 * 60;
@@ -32,6 +33,18 @@ class ReminderDraft {
   int quietStart;
   int quietEnd;
 
+  /// A new reminder pre-filled from the user's defaults (Pengaturan).
+  factory ReminderDraft.fromDefaults(DateTime when, NagDefaultsState d) =>
+      ReminderDraft(
+        remindAt: when,
+        intervalMinutes: d.intervalMinutes,
+        maxCount: d.maxCount,
+        escalate: d.escalate,
+        quiet: d.quiet,
+        quietStart: d.quietStart,
+        quietEnd: d.quietEnd,
+      );
+
   String? get escalationJson => escalate ? encodeEscalation(defaultEscalation) : null;
 }
 
@@ -45,18 +58,20 @@ String fmtMinute(int m) =>
 Future<ReminderDraft?> showReminderSheet(
   BuildContext context, {
   ReminderDraft? initial,
+  NagDefaultsState defaults = const NagDefaultsState(),
 }) {
   return showModalBottomSheet<ReminderDraft>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => _ReminderSheet(initial: initial),
+    builder: (_) => _ReminderSheet(initial: initial, defaults: defaults),
   );
 }
 
 class _ReminderSheet extends StatefulWidget {
-  const _ReminderSheet({this.initial});
+  const _ReminderSheet({this.initial, required this.defaults});
   final ReminderDraft? initial;
+  final NagDefaultsState defaults;
 
   @override
   State<_ReminderSheet> createState() => _ReminderSheetState();
@@ -64,7 +79,10 @@ class _ReminderSheet extends StatefulWidget {
 
 class _ReminderSheetState extends State<_ReminderSheet> {
   late final ReminderDraft _d = widget.initial ??
-      ReminderDraft(remindAt: DateTime.now().add(const Duration(minutes: 10)));
+      ReminderDraft.fromDefaults(
+        DateTime.now().add(const Duration(minutes: 10)),
+        widget.defaults,
+      );
 
   void _set(DateTime when) => setState(() => _d.remindAt = when);
 

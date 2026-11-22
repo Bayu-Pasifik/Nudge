@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/auth/auth_providers.dart';
+import '../../core/settings/nag_defaults.dart';
 import '../../core/settings/theme_mode.dart';
 import '../../core/sync/sync_engine.dart';
 import '../../core/sync/sync_providers.dart';
@@ -95,6 +96,9 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: AppSpacing.lg),
+          const _Header('Pengingat default'),
+          const _NagDefaultsSection(),
+          const SizedBox(height: AppSpacing.lg),
           const _Header('Tampilan'),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
@@ -125,6 +129,110 @@ class SettingsScreen extends ConsumerWidget {
 
   static String _hm(DateTime d) =>
       '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+}
+
+/// Defaults applied to every newly created reminder.
+class _NagDefaultsSection extends ConsumerWidget {
+  const _NagDefaultsSection();
+
+  static const _intervals = [1, 5, 10, 15, 30, 60];
+  static const _maxCounts = <int?>[null, 5, 10, 20, 50];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.tokens;
+    final d = ref.watch(nagDefaultsProvider);
+    final n = ref.read(nagDefaultsProvider.notifier);
+
+    String hm(int m) =>
+        '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+
+    Future<void> pick(bool start) async {
+      final cur = start ? d.quietStart : d.quietEnd;
+      final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay(hour: cur ~/ 60, minute: cur % 60),
+      );
+      if (time == null) return;
+      final m = time.hour * 60 + time.minute;
+      await n.update(start ? d.copyWith(quietStart: m) : d.copyWith(quietEnd: m));
+    }
+
+    Widget label(String s) => Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.sm),
+          child: Text(
+            s,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: t.textSecondary,
+            ),
+          ),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        label('Ulangi setiap'),
+        Wrap(
+          spacing: AppSpacing.sm,
+          children: [
+            for (final m in _intervals)
+              ChoiceChip(
+                key: Key('default-interval-$m'),
+                label: Text(m == 60 ? '1 jam' : '$m mnt'),
+                selected: d.intervalMinutes == m,
+                onSelected: (_) => n.update(d.copyWith(intervalMinutes: m)),
+              ),
+          ],
+        ),
+        label('Maksimum pengingat'),
+        Wrap(
+          spacing: AppSpacing.sm,
+          children: [
+            for (final c in _maxCounts)
+              ChoiceChip(
+                key: Key('default-max-${c ?? 'inf'}'),
+                label: Text(c == null ? 'Sampai selesai' : '$c kali'),
+                selected: d.maxCount == c,
+                onSelected: (_) => n.update(d.copyWith(maxCount: () => c)),
+              ),
+          ],
+        ),
+        SwitchListTile(
+          key: const Key('default-escalate'),
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Makin mendesak bila diabaikan'),
+          value: d.escalate,
+          onChanged: (v) => n.update(d.copyWith(escalate: v)),
+        ),
+        SwitchListTile(
+          key: const Key('default-quiet'),
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Jam tenang'),
+          subtitle: Text('Tidak mengulang pukul ${hm(d.quietStart)}–${hm(d.quietEnd)}'),
+          value: d.quiet,
+          onChanged: (v) => n.update(d.copyWith(quiet: v)),
+        ),
+        if (d.quiet)
+          Row(
+            children: [
+              OutlinedButton(
+                key: const Key('default-quiet-start'),
+                onPressed: () => pick(true),
+                child: Text('Mulai ${hm(d.quietStart)}'),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              OutlinedButton(
+                key: const Key('default-quiet-end'),
+                onPressed: () => pick(false),
+                child: Text('Selesai ${hm(d.quietEnd)}'),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
 }
 
 class _Header extends StatelessWidget {
