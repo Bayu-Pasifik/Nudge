@@ -3,11 +3,17 @@ import 'package:material_ui/material_ui.dart';
 
 import 'core/theme/app_theme.dart';
 import 'features/board/board_screen.dart';
+import 'features/card/card_detail_screen.dart';
 import 'features/boards/boards_screen.dart';
 
 GoRouter buildRouter() => GoRouter(
       routes: [
         GoRoute(path: '/', builder: (_, _) => const BoardsScreen()),
+        GoRoute(
+          path: '/card/:id',
+          builder: (_, state) =>
+              CardDetailScreen(cardId: state.pathParameters['id']!),
+        ),
         GoRoute(
           path: '/board/:id',
           builder: (_, state) =>
