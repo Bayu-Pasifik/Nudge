@@ -17,8 +17,8 @@ Dokumen produk ada di [`docs/`](docs): [PRD](docs/PRD.md), [STYLE](docs/STYLE.md
 | Pin / sticky note (kartu berwarna, notifikasi menetap Android) | Selesai, teruji (notifikasi asli, flag `ONGOING`, tombol Selesai) |
 | Offline-first + sync (LWW, tombstone, antrean otomatis) | Selesai, teruji terhadap server tiruan dengan dua perangkat |
 | Login (email+password, magic link, reset), Pengaturan, tema | Selesai, teruji dengan backend auth tiruan |
-| Skema Supabase, RLS, trigger | Ditulis di `supabase/migrations`, **belum dijalankan** (lihat di bawah) |
-| Koneksi ke Supabase sungguhan | **Belum diuji**: butuh project Supabase milikmu |
+| Skema Supabase, RLS, trigger, grants | Teruji di Supabase asli: 20 pemeriksaan (`tool/live_check.dart`) |
+| Sync dua perangkat lewat Supabase asli + realtime | Teruji di emulator (`integration_test/e2e_supabase_test.dart`) |
 | Widget layar utama Android, sticky window desktop, tray | Lihat `docs/TASKS.md` |
 | iOS | Belum (butuh Mac + akun Apple Developer) |
 
@@ -36,8 +36,9 @@ data hanya di perangkat.
 ## Menghubungkan Supabase
 
 1. Buat project di [supabase.com](https://supabase.com).
-2. Jalankan migrasi `supabase/migrations/20261122000000_init.sql` (SQL Editor di
-   dashboard, atau `supabase db push` dengan Supabase CLI).
+2. Jalankan migrasi di `supabase/migrations/` secara berurutan (SQL Editor di
+   dashboard, atau `supabase db push`). `..._grants.sql` wajib: tanpa itu muncul
+   `permission denied for table`.
 3. (Opsional, disarankan) jalankan `supabase test db` untuk tes RLS di
    `supabase/tests/rls_test.sql`.
 4. Authentication > URL Configuration: tambahkan redirect `com.bayu.nudge://login-callback/`.
