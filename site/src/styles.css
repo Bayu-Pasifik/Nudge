@@ -205,8 +205,13 @@ a {
    the section's pass. Negative depth moves up faster than the page. */
 .layer {
   position: absolute;
-  transform: translate3d(0, calc((var(--p, 0.5) - 0.5) * var(--depth, 0) * var(--parallax-gain, 3.2) * 1px), 0);
+  transform: translate3d(0, calc((var(--p, 0.5) - 0.5) * var(--depth, 0) * var(--parallax-gain, 4) * 1px), 0);
   will-change: transform;
+}
+
+/* Hero depths are small numbers; the hero pass is long, so push them harder. */
+.hero {
+  --parallax-gain: 11;
 }
 
 .layer--flow {
