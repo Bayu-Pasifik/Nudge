@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- Keep icons referenced only by name at runtime (notifications, widget),
+     otherwise the release resource shrinker removes them and notifications
+     silently fail to show. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@mipmap/*,@drawable/*,@layout/nudge_widget" />
+
