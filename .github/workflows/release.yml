@@ -1,15 +1,39 @@
 name: Build and publish release
 
-# Push a tag like v1.0.0 to build the Android APK and the Windows zip on GitHub's
-# runners and attach both to a GitHub Release.
-#   git tag v1.0.0 && git push origin v1.0.0
+# Two ways to run this:
+#
+#  1. Public release: push a tag like v1.0.0. Builds the Android APK and the
+#     Windows zip in LOCAL mode (no Supabase credentials inside) and attaches
+#     them to a GitHub Release.
+#
+#       git tag v1.0.0 && git push origin v1.0.0
+#
+#  2. Connected build: Actions > "Build and publish release" > Run workflow with
+#     "with_supabase" ticked. Builds with your Supabase URL and publishable key
+#     from the repository secrets and uploads them as a PRIVATE workflow
+#     artifact (visible only to people with access to this repo). It is never
+#     attached to a public Release, because anyone holding that app could sign
+#     up on your Supabase project.
+#
+# Secrets needed for (2): SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      with_supabase:
+        description: 'Embed the Supabase URL and key (private artifact, no public release)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
+
+env:
+  # Empty for public builds. Filled only for a manual "with_supabase" run.
+  DEFINES: ${{ (github.event_name == 'workflow_dispatch' && inputs.with_supabase) && format('--dart-define=SUPABASE_URL={0} --dart-define=SUPABASE_PUBLISHABLE_KEY={1}', secrets.SUPABASE_URL, secrets.SUPABASE_PUBLISHABLE_KEY) || '' }}
+  SUFFIX: ${{ (github.event_name == 'workflow_dispatch' && inputs.with_supabase) && '-connected' || '' }}
+  VERSION: ${{ github.ref_name }}
 
 jobs:
   android:
@@ -27,13 +51,15 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build apk --release
+      - name: Build APK
+        run: flutter build apk --release $DEFINES
       - name: Name the file
-        run: cp build/app/outputs/flutter-apk/app-release.apk "Nudge-${GITHUB_REF_NAME}-android.apk"
+        run: cp build/app/outputs/flutter-apk/app-release.apk "Nudge-${VERSION}${SUFFIX}-android.apk"
       - uses: actions/upload-artifact@v4
         with:
-          name: android
+          name: android${{ env.SUFFIX }}
           path: Nudge-*-android.apk
+          retention-days: ${{ env.SUFFIX == '' && 1 || 14 }}
 
   windows:
     runs-on: windows-latest
@@ -44,16 +70,21 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build windows --release
+      - name: Build Windows
+        shell: bash
+        run: flutter build windows --release $DEFINES
       - name: Zip
         shell: pwsh
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath "Nudge-$env:GITHUB_REF_NAME-windows-x64.zip"
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath "Nudge-$env:VERSION$env:SUFFIX-windows-x64.zip"
       - uses: actions/upload-artifact@v4
         with:
-          name: windows
+          name: windows${{ env.SUFFIX }}
           path: Nudge-*-windows-x64.zip
+          retention-days: ${{ env.SUFFIX == '' && 1 || 14 }}
 
   release:
+    # Public releases only: never for a connected (credential-bearing) build.
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: [android, windows]
     runs-on: ubuntu-latest
     steps:
@@ -71,5 +102,6 @@ jobs:
               dan, di Pengaturan app, ikuti panduan "Agar pengingat selalu bunyi".
             - **Windows**: ekstrak `.zip`, jalankan `nudge.exe`. Nudge tetap berjalan di tray agar pengingat berbunyi.
 
-            APK ditandatangani dengan kunci debug (bukan kunci rilis Play Store). Untuk sinkron antar perangkat,
-            hubungkan project Supabase sesuai README.
+            Build ini berjalan dalam **mode lokal** (data hanya di perangkat). Untuk sinkron antar perangkat,
+            bangun sendiri dengan project Supabase kamu (lihat README).
+            APK ditandatangani dengan kunci debug (bukan kunci rilis Play Store).
