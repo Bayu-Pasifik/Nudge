@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../boards/boards_screen.dart';
+import '../search/search_screen.dart';
 import '../today/today_screen.dart';
 
 /// Top-level navigation: Hari ini / Board. Bottom bar on phones, side rail on
@@ -15,7 +16,7 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
-  static const _pages = [TodayScreen(), BoardsScreen()];
+  static const _pages = [TodayScreen(), BoardsScreen(), SearchScreen()];
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +40,11 @@ class _HomeShellState extends State<HomeShell> {
                   icon: Icon(Icons.dashboard_outlined, key: Key('nav-boards')),
                   selectedIcon: Icon(Icons.dashboard),
                   label: Text('Board'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.search, key: Key('nav-search')),
+                  selectedIcon: Icon(Icons.search),
+                  label: Text('Cari'),
                 ),
               ],
             ),
@@ -65,6 +71,11 @@ class _HomeShellState extends State<HomeShell> {
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
             label: 'Board',
+          ),
+          NavigationDestination(
+            key: Key('nav-search'),
+            icon: Icon(Icons.search),
+            label: 'Cari',
           ),
         ],
       ),
