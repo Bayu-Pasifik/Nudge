@@ -12,6 +12,8 @@ import 'features/board/board_screen.dart';
 import 'features/card/card_detail_screen.dart';
 import 'features/home/home_shell.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/sticky/sticky_screen.dart';
+import 'core/desktop/sticky_mode.dart';
 
 GoRouter buildRouter(ProviderContainer ref) => GoRouter(
       refreshListenable: ref.read(authRefreshProvider),
@@ -27,6 +29,7 @@ GoRouter buildRouter(ProviderContainer ref) => GoRouter(
         GoRoute(path: '/', builder: (_, _) => const HomeShell()),
         GoRoute(path: '/auth', builder: (_, _) => const AuthScreen()),
         GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
+        GoRoute(path: '/sticky', builder: (_, _) => const StickyScreen()),
         GoRoute(
           path: '/card/:id',
           builder: (_, state) =>
@@ -78,6 +81,8 @@ class _NudgeAppState extends ConsumerState<NudgeApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Sticky mode swaps the whole window to the compact pinned-notes view.
+    ref.listen(stickyModeProvider, (_, on) => _router.go(on ? '/sticky' : '/'));
     ref.listen(openCardProvider, (_, id) {
       if (id != null) _openPending();
     });

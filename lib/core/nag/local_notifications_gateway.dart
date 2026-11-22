@@ -55,7 +55,7 @@ class LocalNotificationsGateway implements NotificationGateway {
     }
 
     await _plugin.initialize(
-      settings: const InitializationSettings(
+      const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
       onDidReceiveNotificationResponse: onResponse,
@@ -137,11 +137,11 @@ class LocalNotificationsGateway implements NotificationGateway {
     await cancelAllNags();
     for (final n in notifications) {
       await _plugin.zonedSchedule(
-        id: n.id,
-        title: n.title,
-        body: n.body,
-        scheduledDate: tz.TZDateTime.from(n.at, tz.local),
-        notificationDetails: _details(n),
+        n.id,
+        n.title,
+        n.body,
+        tz.TZDateTime.from(n.at, tz.local),
+        _details(n),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         payload: n.payload,
       );
@@ -154,7 +154,7 @@ class LocalNotificationsGateway implements NotificationGateway {
     for (final p in pending) {
       final payload = NagPayload.parse(p.payload);
       if (payload != null && !payload.isSticky) {
-        await _plugin.cancel(id: p.id);
+        await _plugin.cancel(p.id);
       }
     }
   }
@@ -167,17 +167,16 @@ class LocalNotificationsGateway implements NotificationGateway {
       final id = a.id;
       final payload = NagPayload.parse(a.payload);
       if (id != null && payload != null && payload.isSticky && !wanted.contains(id)) {
-        await _plugin.cancel(id: id);
+        await _plugin.cancel(id);
       }
     }
     for (final n in notes) {
       final accent = StickyColors.byName(n.colorName);
       await _plugin.show(
-        id: n.id,
-        title: n.title,
-        body: n.body,
-        payload: n.payload,
-        notificationDetails: NotificationDetails(
+        n.id,
+        n.title,
+        n.body,
+        NotificationDetails(
           android: AndroidNotificationDetails(
             'nudge_sticky',
             'Sticky note',
@@ -195,6 +194,7 @@ class LocalNotificationsGateway implements NotificationGateway {
             actions: const [AndroidNotificationAction(_actionDone, 'Selesai')],
           ),
         ),
+        payload: n.payload,
       );
     }
   }

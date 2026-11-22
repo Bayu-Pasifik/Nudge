@@ -7,6 +7,8 @@ import '../../core/nag/providers.dart';
 import '../../core/settings/prefs.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
+import '../../core/desktop/desktop_host.dart' show isDesktopPlatform;
+import '../../core/desktop/sticky_mode.dart';
 import 'today_data.dart';
 
 class TodayScreen extends ConsumerWidget {
@@ -31,6 +33,13 @@ class TodayScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Hari ini'),
         actions: [
+          if (isDesktopPlatform)
+            IconButton(
+              key: const Key('enter-sticky'),
+              tooltip: 'Mode sticky (selalu di atas)',
+              icon: const Icon(Icons.push_pin_outlined),
+              onPressed: () => ref.read(stickyModeProvider.notifier).set(true),
+            ),
           IconButton(
             key: const Key('open-settings'),
             tooltip: 'Pengaturan',

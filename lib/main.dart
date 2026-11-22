@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 import 'dart:ui' show DartPluginRegistrant;
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:local_notifier/local_notifier.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -9,6 +10,9 @@ import 'app.dart';
 import 'core/auth/auth_backend.dart';
 import 'core/auth/auth_providers.dart';
 import 'core/config.dart';
+import 'core/desktop/desktop_host.dart';
+import 'core/desktop/sticky_mode.dart';
+import 'core/nag/desktop_gateway.dart';
 import 'core/db/database.dart';
 import 'core/db/providers.dart';
 import 'core/db/repository.dart';
@@ -55,6 +59,37 @@ Future<void> main() async {
 
   final LocalNotificationsGateway? local =
       Platform.isAndroid ? LocalNotificationsGateway() : null;
+
+  // Windows: in-process timers + toast notifications; the app lives in the tray.
+  late final ProviderContainer container;
+  final DesktopWindowController? desktopWindow =
+      Platform.isWindows ? DesktopWindowController() : null;
+  // Assigned once the container exists (toasts can only fire after startup).
+  late final Future<void> Function(NagAction, NagPayload) onDesktopAction;
+  final TimerNotificationGateway? desktopGateway = Platform.isWindows
+      ? TimerNotificationGateway(
+          show: (n) async {
+            final toast = LocalNotification(
+              identifier: '${n.id}',
+              title: n.title,
+              body: n.body,
+              actions: [
+                LocalNotificationAction(text: 'Selesai'),
+                LocalNotificationAction(text: 'Tunda 10 mnt'),
+              ],
+            );
+            final payload = NagPayload(n.reminderId, n.cardId);
+            toast.onClick = () => onDesktopAction(NagAction.open, payload);
+            toast.onClickAction = (i) => onDesktopAction(
+                  i == 0 ? NagAction.done : NagAction.snooze,
+                  payload,
+                );
+            await toast.show();
+          },
+          onEscalate: (_) => desktopWindow!.raiseTemporarily(),
+        )
+      : null;
+
   final prefs = await SharedPreferences.getInstance();
   SupabaseClient? supabase;
   if (AppConfig.hasSupabase) {
@@ -64,8 +99,12 @@ Future<void> main() async {
     );
     supabase = Supabase.instance.client;
   }
-  final container = ProviderContainer(
+  container = ProviderContainer(
     overrides: [
+      if (desktopGateway != null) ...[
+        notificationGatewayProvider.overrideWithValue(desktopGateway),
+        windowControllerProvider.overrideWithValue(desktopWindow!),
+      ],
       sharedPrefsProvider.overrideWithValue(prefs),
       authBackendProvider.overrideWithValue(
         supabase == null ? null : SupabaseAuthBackend(supabase),
@@ -76,6 +115,20 @@ Future<void> main() async {
       if (local != null) notificationGatewayProvider.overrideWithValue(local),
     ],
   );
+
+  onDesktopAction = (NagAction action, NagPayload payload) async {
+    if (action == NagAction.open) {
+      container.read(openCardProvider.notifier).open(payload.cardId);
+      await desktopWindow?.show();
+      return;
+    }
+    await handleNagAction(
+      container.read(repositoryProvider),
+      container.read(nagSchedulerProvider),
+      action,
+      payload,
+    );
+  };
 
   Future<void> onResponse(NotificationResponse r) async {
     final action = nagActionFrom(r);
@@ -105,6 +158,14 @@ Future<void> main() async {
         nagActionFrom(launch) == NagAction.open) {
       container.read(openCardProvider.notifier).open(payload.cardId);
     }
+  }
+
+  if (Platform.isWindows) {
+    await localNotifier.setup(
+      appName: 'Nudge',
+      shortcutPolicy: ShortcutPolicy.requireCreate,
+    );
+    await DesktopHost(container).init();
   }
 
   runApp(UncontrolledProviderScope(container: container, child: const NudgeApp()));
