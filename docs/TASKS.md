@@ -5,6 +5,30 @@ Setiap fase punya kriteria selesai (DoD) yang bisa diuji. Platform target awal: 
 
 ---
 
+## Status implementasi (22 Nov 2026)
+
+Daftar di bawah ditulis ulang saat implementasi; centang di fase-fase berikut belum
+diperbarui satu per satu. Ringkasan sebenarnya:
+
+**Selesai dan teruji** (emulator Android, Windows desktop, Supabase asli): fondasi, skema lokal,
+Supabase (skema, RLS, trigger, grants), auth, board/list/kartu/checklist, drag and drop,
+mesin pengingat + nag + eskalasi + jam tenang + tunda, layar Hari ini, jeda semua pengingat,
+sticky (notifikasi menetap Android, widget layar utama, jendela sticky Windows), sync offline-first
++ realtime, pengaturan (default nag, tema, ekspor JSON, panduan izin Android), label, pencarian
++ filter, tugas berulang, pintasan keyboard desktop, tray Windows, build rilis Android dan Windows.
+
+**Belum dikerjakan:**
+- T5.13 / T5.10: push server (pg_cron + Edge Function + FCM) dan tabel `devices` terisi. Butuh project Firebase.
+- T0.x di HP fisik: semua uji notifikasi dilakukan di emulator; belum di HP merek agresif (Xiaomi/Oppo/Vivo).
+- i18n id/en (T1.6): semua teks masih Bahasa Indonesia.
+- iOS (T5.15, T6.7, T10.6): butuh Mac dan akun Apple Developer.
+- macOS/Linux, auto-update desktop (T8.4), installer Windows (T8.3), Sentry/Crashlytics (T10.2), backup terjadwal (T10.4).
+- Penandatanganan rilis Android dengan keystore sendiri.
+- Tombol aksi toast Windows (Selesai/Tunda) belum diuji.
+- Widget Android: ketuk judul untuk membuka kartu belum diuji; warna widget tetap kuning.
+
+---
+
 ## Fase 0 — Spike risiko (1–3 hari, lakukan paling awal)
 
 Tujuan: membuktikan bagian paling berisiko sebelum membangun yang lain.

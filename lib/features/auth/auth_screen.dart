@@ -106,6 +106,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Image.asset(
+                      'assets/logo/nudge_mark.png',
+                      key: const Key('auth-logo'),
+                      width: 72,
+                      height: 72,
+                      semanticLabel: 'Logo Nudge',
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   Text(
                     'Nudge',
                     style: TextStyle(

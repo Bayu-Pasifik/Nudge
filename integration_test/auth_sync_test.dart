@@ -81,11 +81,16 @@ void main() {
 
       await tester.tap(find.byKey(const Key('mode-login')));
       await tester.pumpAndSettle();
+      // The logo makes the form taller than a phone screen: scroll to buttons.
+      await tester.ensureVisible(find.byKey(const Key('auth-magic')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('auth-magic')));
       await tester.pumpAndSettle();
       expect(auth.magicLinks, ['baru@example.com']);
       expect(find.textContaining('Tautan masuk dikirim'), findsOneWidget);
 
+      await tester.ensureVisible(find.byKey(const Key('auth-forgot')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('auth-forgot')));
       await tester.pumpAndSettle();
       expect(auth.resets, ['baru@example.com']);
@@ -205,6 +210,12 @@ void main() {
       await pumpNudge(tester, startOnBoards: false);
       await tester.tap(find.byKey(const Key('open-settings')));
       await tester.pumpAndSettle();
+      // Settings is a lazy ListView: the theme control may not be built yet.
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('theme-dark')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(find.byKey(const Key('theme-dark')));
       await tester.pumpAndSettle();
       final app = tester.widget<MaterialApp>(find.byType(MaterialApp));

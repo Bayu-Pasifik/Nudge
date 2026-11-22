@@ -7,7 +7,6 @@
 //   adb shell am start -n com.bayu.nudge/.MainActivity
 //   adb logcat -d | grep RELEASE_CHECK
 // ignore_for_file: avoid_print
-import 'package:flutter/widgets.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:nudge/core/db/database.dart';
 import 'package:nudge/core/db/repository.dart';

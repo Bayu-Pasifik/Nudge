@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Nudge</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4B6BEB"/>
+      <stop offset="1" stop-color="#2F49B5"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#10163A" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- app tile -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+
+  <!-- the nudge: two ping arcs -->
+  <g fill="none" stroke="#FFFFFF" stroke-linecap="round">
+    <path d="M 822 196 A 96 96 0 0 1 904 278" stroke-width="40"/>
+    <path d="M 800 120 A 180 180 0 0 1 960 280" stroke-width="40" opacity="0.55"/>
+  </g>
+
+  <!-- sticky note, slightly tilted, folded corner bottom right -->
+  <g transform="rotate(-6 512 530)" filter="url(#soft)">
+    <path d="M 272 250 H 752 Q 792 250 792 290 V 660 L 642 810 H 272 Q 232 810 232 770 V 290 Q 232 250 272 250 Z"
+          fill="#FFF3B0"/>
+    <path d="M 792 660 L 642 810 L 642 700 Q 642 660 682 660 Z" fill="#E8D35F"/>
+    <!-- done tick -->
+    <path d="M 362 530 L 462 632 L 662 420" fill="none" stroke="#1E1B16"
+          stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

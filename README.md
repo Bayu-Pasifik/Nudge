@@ -21,7 +21,15 @@ Dokumen produk ada di [`docs/`](docs): [PRD](docs/PRD.md), [STYLE](docs/STYLE.md
 | Sync dua perangkat lewat Supabase asli + realtime | Teruji di emulator (`integration_test/e2e_supabase_test.dart`) |
 | Widget layar utama Android (kartu ter-pin + tombol centang) | Teruji di emulator: widget ditambahkan, tombol centang menyelesaikan kartu (`integration_test/e2e_widget_test.dart` + `tool/drive_widget.ps1`) |
 | Windows: tray, close-to-tray, mode sticky, toast | Suite lolos di Windows; tombol toast belum diuji |
-| iOS | Belum (butuh Mac + akun Apple Developer) |
+| Label, pencarian + filter (tab Cari) | Selesai, teruji (logika murni + UI) |
+| Tugas berulang (harian/mingguan/bulanan) | Selesai, teruji (logika tanggal murni + perilaku + UI) |
+| Pengaturan default nag, ekspor JSON, panduan izin Android | Selesai, teruji |
+| Pintasan keyboard desktop (Ctrl/Cmd+1/2/3, Ctrl/Cmd+K) | Selesai, teruji di Windows |
+| Build rilis Android | APK 50 MB; di build rilis terbukti: alarm terdaftar, nag muncul, sticky tampil, tanpa crash (`tool/release_check_main.dart`). Masih ditandatangani kunci debug |
+| Build rilis Windows | `build/windows/x64/runner/Release`, berjalan; installer belum dibuat |
+| Dua bahasa (id/en) | **Belum**: seluruh teks masih Bahasa Indonesia |
+| Push server (FCM) sebagai cadangan pengingat | **Belum**: butuh project Firebase |
+| iOS | **Belum** (butuh Mac + akun Apple Developer) |
 
 ## Menjalankan
 

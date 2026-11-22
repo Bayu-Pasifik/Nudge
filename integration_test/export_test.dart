@@ -71,7 +71,12 @@ void main() {
     await Repository(db).createBoard('Dari tombol');
     await tester.tap(find.byKey(const Key('open-settings')));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const Key('export-json')));
+    // Settings is a lazy ListView: scroll until the tile is actually built.
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('export-json')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.byKey(const Key('export-json')));
     await tester.runAsync(() => Future<void>.delayed(const Duration(seconds: 1)));
     await tester.pumpAndSettle();
