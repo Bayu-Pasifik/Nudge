@@ -6,6 +6,7 @@ import '../../core/db/providers.dart';
 import '../../core/theme/tokens.dart';
 import '../boards/boards_screen.dart' show confirmDialog;
 import 'card_tile.dart';
+import 'drag.dart';
 
 class ListColumn extends ConsumerStatefulWidget {
   const ListColumn({
@@ -33,6 +34,17 @@ class _ListColumnState extends ConsumerState<ListColumn> {
     _controller.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  /// Drop of [cardId] before the card at [index] (or at the end).
+  Future<void> _drop(String cardId, int index) async {
+    final current = widget.cards.indexWhere((c) => c.id == cardId);
+    // Moving down inside the same list: the dragged card's own slot vanishes.
+    final target = (current != -1 && current < index) ? index - 1 : index;
+    if (current == target) return;
+    await ref
+        .read(repositoryProvider)
+        .moveCard(cardId, widget.list.id, target);
   }
 
   Future<void> _submit() async {
@@ -67,11 +79,47 @@ class _ListColumnState extends ConsumerState<ListColumn> {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    list.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                  child: LongPressDraggable<ListDragData>(
+                    key: Key('list-handle-${list.title}'),
+                    data: ListDragData(list.id),
+                    onDragStarted: () =>
+                        ref.read(draggingProvider.notifier).set(true),
+                    onDragEnd: (_) =>
+                        ref.read(draggingProvider.notifier).set(false),
+                    onDraggableCanceled: (_, _) =>
+                        ref.read(draggingProvider.notifier).set(false),
+                    feedback: Material(
+                      color: Colors.transparent,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                          vertical: AppSpacing.md,
+                        ),
+                        decoration: BoxDecoration(
+                          color: t.bgList,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: t.accent),
+                        ),
+                        child: Text(
+                          list.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
+                      ),
+                      child: Text(
+                        list.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -113,19 +161,30 @@ class _ListColumnState extends ConsumerState<ListColumn> {
             ),
           ),
           Expanded(
-            child: ListView.separated(
+            child: ListView.builder(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.sm,
                 vertical: AppSpacing.xs,
               ),
-              itemCount: widget.cards.length,
-              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+              // +1: trailing drop zone so cards can be dropped at the end
+              // (and into an empty list).
+              itemCount: widget.cards.length + 1,
               itemBuilder: (_, i) {
+                if (i == widget.cards.length) {
+                  return _DropSlot(
+                    key: Key('drop-end-${list.title}'),
+                    onDrop: (id) => _drop(id, i),
+                    minHeight: widget.cards.isEmpty ? 56 : 32,
+                  );
+                }
                 final c = widget.cards[i];
-                return CardTile(
-                  key: ValueKey(c.id),
-                  card: c,
-                  checklist: widget.checklistByCard[c.id] ?? const [],
+                return _DropSlot(
+                  key: ValueKey('slot-${c.id}'),
+                  onDrop: (id) => _drop(id, i),
+                  child: _DraggableCard(
+                    card: c,
+                    checklist: widget.checklistByCard[c.id] ?? const [],
+                  ),
                 );
               },
             ),
@@ -174,6 +233,74 @@ class _ListColumnState extends ConsumerState<ListColumn> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Wraps a card slot: shows an insertion line while a card hovers and reports
+/// the dropped card id.
+class _DropSlot extends StatelessWidget {
+  const _DropSlot({
+    super.key,
+    required this.onDrop,
+    this.child,
+    this.minHeight = 0,
+  });
+
+  final void Function(String cardId) onDrop;
+  final Widget? child;
+  final double minHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    return DragTarget<CardDragData>(
+      onWillAcceptWithDetails: (_) => true,
+      onAcceptWithDetails: (d) => onDrop(d.data.cardId),
+      builder: (context, candidates, _) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InsertionLine(active: candidates.isNotEmpty),
+            if (child != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: child,
+              )
+            else
+              SizedBox(height: minHeight),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _DraggableCard extends ConsumerWidget {
+  const _DraggableCard({required this.card, required this.checklist});
+  final TodoCard card;
+  final List<ChecklistItem> checklist;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    void setDragging(bool v) => ref.read(draggingProvider.notifier).set(v);
+    final tile = CardTile(card: card, checklist: checklist);
+    return LongPressDraggable<CardDragData>(
+      data: CardDragData(card.id),
+      onDragStarted: () => setDragging(true),
+      onDragEnd: (_) => setDragging(false),
+      onDraggableCanceled: (_, _) => setDragging(false),
+      feedback: Material(
+        color: Colors.transparent,
+        child: Transform.rotate(
+          angle: 0.035,
+          child: SizedBox(
+            width: 280,
+            child: Opacity(opacity: 0.95, child: tile),
+          ),
+        ),
+      ),
+      childWhenDragging: Opacity(opacity: 0.3, child: tile),
+      child: tile,
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/db/database.dart';
 import '../../core/db/providers.dart';
 import '../../core/theme/tokens.dart';
+import 'drag.dart';
 import 'list_column.dart';
 
 const _wideBreakpoint = 768.0;
@@ -34,75 +35,154 @@ class BoardScreen extends ConsumerWidget {
       body: lists.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Gagal memuat: $e')),
-        data: (items) {
-          final columns = <Widget>[
-            for (final l in items)
-              ListColumn(
-                key: ValueKey(l.id),
-                list: l,
-                cards: cardsByList[l.id] ?? const [],
-                checklistByCard: checklistByCard,
+        data: (items) => _BoardBody(
+          columns: [
+            for (var i = 0; i < items.length; i++)
+              _ListDropTarget(
+                key: ValueKey('target-${items[i].id}'),
+                index: i,
+                child: ListColumn(
+                  key: ValueKey(items[i].id),
+                  list: items[i],
+                  cards: cardsByList[items[i].id] ?? const [],
+                  checklistByCard: checklistByCard,
+                ),
               ),
             _AddListColumn(boardId: boardId, isEmpty: items.isEmpty),
-          ];
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final wide = constraints.maxWidth >= _wideBreakpoint;
-              if (wide) {
-                return ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  itemCount: columns.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(width: AppSpacing.md),
-                  itemBuilder: (_, i) => SizedBox(
-                    width: _listWidth,
-                    child: columns[i],
-                  ),
-                );
-              }
-              return _Pager(columns: columns);
-            },
-          );
-        },
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Phone layout: one list per page with a peek of the next. Stateful so the
-/// controller (and current page) survive rebuilds.
-class _Pager extends StatefulWidget {
-  const _Pager({required this.columns});
+/// Lays the columns out (paged on phones, side by side on wide screens) and
+/// owns the scroll controllers so dragging near an edge can scroll the board.
+class _BoardBody extends ConsumerStatefulWidget {
+  const _BoardBody({required this.columns});
   final List<Widget> columns;
 
   @override
-  State<_Pager> createState() => _PagerState();
+  ConsumerState<_BoardBody> createState() => _BoardBodyState();
 }
 
-class _PagerState extends State<_Pager> {
-  final _controller = PageController(viewportFraction: 0.88);
+class _BoardBodyState extends ConsumerState<_BoardBody> {
+  final _page = PageController(viewportFraction: 0.88);
+  final _scroll = ScrollController();
 
   @override
   void dispose() {
-    _controller.dispose();
+    _page.dispose();
+    _scroll.dispose();
     super.dispose();
+  }
+
+  void _step(int dir, bool wide) {
+    if (wide) {
+      if (!_scroll.hasClients) return;
+      final to = (_scroll.offset + dir * (_listWidth + AppSpacing.md))
+          .clamp(0.0, _scroll.position.maxScrollExtent);
+      _scroll.animateTo(
+        to,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    } else {
+      if (!_page.hasClients) return;
+      final next = (_page.page!.round() + dir).clamp(0, widget.columns.length - 1);
+      _page.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return PageView.builder(
-      controller: _controller,
-      padEnds: false,
-      itemCount: widget.columns.length,
-      itemBuilder: (_, i) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          i == 0 ? AppSpacing.lg : AppSpacing.xs,
-          AppSpacing.sm,
-          AppSpacing.xs,
-          AppSpacing.lg,
+    final dragging = ref.watch(draggingProvider);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= _wideBreakpoint;
+        final columns = widget.columns;
+        final Widget body = wide
+            ? ListView.separated(
+                controller: _scroll,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                itemCount: columns.length,
+                separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+                itemBuilder: (_, i) =>
+                    SizedBox(width: _listWidth, child: columns[i]),
+              )
+            : PageView.builder(
+                controller: _page,
+                padEnds: false,
+                itemCount: columns.length,
+                itemBuilder: (_, i) => Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    i == 0 ? AppSpacing.lg : AppSpacing.xs,
+                    AppSpacing.sm,
+                    AppSpacing.xs,
+                    AppSpacing.lg,
+                  ),
+                  child: columns[i],
+                ),
+              );
+        return Stack(
+          children: [
+            Positioned.fill(child: body),
+            if (dragging) ...[
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: EdgeScrollZone(
+                  key: const Key('edge-left'),
+                  direction: -1,
+                  onStep: (d) => _step(d, wide),
+                ),
+              ),
+              Positioned(
+                right: 0,
+                top: 0,
+                bottom: 0,
+                child: EdgeScrollZone(
+                  key: const Key('edge-right'),
+                  direction: 1,
+                  onStep: (d) => _step(d, wide),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Dropping a list header here moves the dragged list to this column's index.
+class _ListDropTarget extends ConsumerWidget {
+  const _ListDropTarget({super.key, required this.index, required this.child});
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.tokens;
+    return DragTarget<ListDragData>(
+      onWillAcceptWithDetails: (_) => true,
+      onAcceptWithDetails: (d) =>
+          ref.read(repositoryProvider).moveList(d.data.listId, index),
+      builder: (context, candidates, _) => DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: candidates.isEmpty
+              ? null
+              : Border.all(color: t.accent, width: 2),
         ),
-        child: widget.columns[i],
+        child: child,
       ),
     );
   }

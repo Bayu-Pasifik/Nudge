@@ -125,7 +125,34 @@ class _CardDetailScreenState extends ConsumerState<CardDetailScreen> {
           PopupMenuButton<String>(
             key: const Key('card-menu'),
             onSelected: (v) async {
-              if (v == 'archive') {
+              if (v == 'move') {
+                final lists = await _repo.watchLists(card.boardId).first;
+                if (!context.mounted) return;
+                final target = await showDialog<BoardList>(
+                  context: context,
+                  builder: (ctx) => SimpleDialog(
+                    title: const Text('Pindahkan ke…'),
+                    children: [
+                      for (final l in lists)
+                        SimpleDialogOption(
+                          key: Key('move-to-${l.title}'),
+                          onPressed: () => Navigator.pop(ctx, l),
+                          child: Text(
+                            l.title,
+                            style: TextStyle(
+                              fontWeight: l.id == card.listId
+                                  ? FontWeight.w700
+                                  : FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+                if (target != null && target.id != card.listId) {
+                  await _repo.moveCard(card.id, target.id, 1 << 20);
+                }
+              } else if (v == 'archive') {
                 await _repo.archiveCard(card.id);
                 if (context.mounted) context.pop();
               } else if (v == 'delete') {
@@ -143,6 +170,7 @@ class _CardDetailScreenState extends ConsumerState<CardDetailScreen> {
               }
             },
             itemBuilder: (_) => const [
+              PopupMenuItem(value: 'move', child: Text('Pindahkan ke…')),
               PopupMenuItem(value: 'archive', child: Text('Arsipkan')),
               PopupMenuItem(value: 'delete', child: Text('Hapus')),
             ],
