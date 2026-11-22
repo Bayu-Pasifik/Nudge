@@ -1,7 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+
 import '../../core/auth/auth_providers.dart';
+import '../../core/db/providers.dart';
+import '../../core/export/export_service.dart';
 import '../../core/settings/nag_defaults.dart';
 import '../../core/settings/theme_mode.dart';
 import '../../core/sync/sync_engine.dart';
@@ -98,6 +102,28 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           const _Header('Pengingat default'),
           const _NagDefaultsSection(),
+          const SizedBox(height: AppSpacing.lg),
+          const _Header('Data'),
+          ListTile(
+            key: const Key('export-json'),
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.download_outlined),
+            title: const Text('Ekspor data (JSON)'),
+            subtitle: const Text('Cadangan semua board, kartu, checklist, dan pengingat'),
+            onTap: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final result = await exportAll(ref.read(appDatabaseProvider));
+              await Clipboard.setData(ClipboardData(text: result.json));
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Diekspor dan disalin ke clipboard.\n${result.path}',
+                    key: const Key('export-done'),
+                  ),
+                ),
+              );
+            },
+          ),
           const SizedBox(height: AppSpacing.lg),
           const _Header('Tampilan'),
           Padding(

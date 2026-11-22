@@ -25,6 +25,9 @@ class LocalInfo {
 abstract class SyncTable {
   String get name;
   Future<List<DirtyRow>> dirty(AppDatabase db, String userId);
+
+  /// Every local row (dirty or not), encoded like a push. Used for exports.
+  Future<List<Row>> all(AppDatabase db, String userId);
   Future<void> markClean(AppDatabase db, String id, DateTime updatedAt);
   Future<LocalInfo?> local(AppDatabase db, String id);
   Future<void> applyRemote(AppDatabase db, Row row);
@@ -55,6 +58,12 @@ class _Table<T extends SyncColumns, D> implements SyncTable {
     final t = table(db);
     final rows = await (db.select(t)..where((r) => (r as SyncColumns).dirty.equals(true))).get();
     return [for (final r in rows) DirtyRow(idOf(r), updatedAtOf(r), encode(r, userId))];
+  }
+
+  @override
+  Future<List<Row>> all(AppDatabase db, String userId) async {
+    final rows = await db.select(table(db)).get();
+    return [for (final r in rows) encode(r, userId)];
   }
 
   @override
