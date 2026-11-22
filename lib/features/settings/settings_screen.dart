@@ -15,6 +15,7 @@ import '../../core/settings/theme_mode.dart';
 import '../../core/sync/sync_engine.dart';
 import '../../core/sync/sync_providers.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/update/update_service.dart';
 import '../boards/boards_screen.dart' show confirmDialog;
 
 class SettingsScreen extends ConsumerWidget {
@@ -133,6 +134,9 @@ class SettingsScreen extends ConsumerWidget {
               );
             },
           ),
+          const SizedBox(height: AppSpacing.lg),
+          const _Header('Pembaruan'),
+          const _UpdateSection(),
           const SizedBox(height: AppSpacing.lg),
           const _Header('Tampilan'),
           Padding(
@@ -362,6 +366,118 @@ class _NagDefaultsSection extends ConsumerWidget {
                 child: Text('Selesai ${hm(d.quietEnd)}'),
               ),
             ],
+          ),
+      ],
+    );
+  }
+}
+
+/// Checks GitHub Releases for a newer version and opens the download.
+class _UpdateSection extends ConsumerStatefulWidget {
+  const _UpdateSection();
+
+  @override
+  ConsumerState<_UpdateSection> createState() => _UpdateSectionState();
+}
+
+class _UpdateSectionState extends ConsumerState<_UpdateSection> {
+  bool _checking = false;
+  UpdateResult? _result;
+
+  Future<void> _check() async {
+    setState(() => _checking = true);
+    final r = await ref.read(updateCheckerProvider).check();
+    if (!mounted) return;
+    setState(() {
+      _checking = false;
+      _result = r;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final r = _result;
+
+    final (IconData icon, Color color, String title, String subtitle) =
+        switch (r) {
+      null => (
+          Icons.system_update_alt,
+          t.textSecondary,
+          'Cek pembaruan',
+          'Cari versi baru di GitHub.',
+        ),
+      UpToDate(:final current) => (
+          Icons.check_circle_outline,
+          t.success,
+          'Sudah versi terbaru',
+          'Versi $current',
+        ),
+      UpdateAvailable(:final current, :final info) => (
+          Icons.new_releases_outlined,
+          t.warning,
+          'Versi ${info.version} tersedia',
+          'Kamu memakai $current.',
+        ),
+      UpdateFailed(:final message) => (
+          Icons.error_outline,
+          t.danger,
+          'Gagal memeriksa',
+          message,
+        ),
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListTile(
+          key: const Key('update-status'),
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(icon, color: color),
+          title: Text(title),
+          subtitle: Text(subtitle),
+          trailing: _checking
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : r is UpdateAvailable
+                  ? FilledButton(
+                      key: const Key('update-download'),
+                      onPressed: () => ref
+                          .read(updateCheckerProvider)
+                          .open(r.info.downloadUrl),
+                      child: Text(Platform.isAndroid ? 'Unduh APK' : 'Unduh'),
+                    )
+                  : TextButton(
+                      key: const Key('update-check'),
+                      onPressed: _check,
+                      child: const Text('Periksa'),
+                    ),
+        ),
+        if (r is UpdateAvailable && r.info.notes.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Text(
+              r.info.notes,
+              key: const Key('update-notes'),
+              maxLines: 6,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13, color: t.textSecondary),
+            ),
+          ),
+        if (r is UpdateAvailable)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              Platform.isAndroid
+                  ? 'Setelah unduhan selesai, buka file APK untuk memasang '
+                      'pembaruan. Data tetap aman.'
+                  : 'Tutup Nudge, ekstrak zip ke folder lama (timpa), lalu '
+                      'jalankan nudge.exe.',
+              style: TextStyle(fontSize: 12, color: t.textSecondary),
+            ),
           ),
       ],
     );
