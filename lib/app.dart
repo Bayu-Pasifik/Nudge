@@ -5,12 +5,12 @@ import 'package:material_ui/material_ui.dart';
 import 'core/nag/providers.dart';
 import 'core/theme/app_theme.dart';
 import 'features/board/board_screen.dart';
-import 'features/boards/boards_screen.dart';
+import 'features/home/home_shell.dart';
 import 'features/card/card_detail_screen.dart';
 
 GoRouter buildRouter() => GoRouter(
       routes: [
-        GoRoute(path: '/', builder: (_, _) => const BoardsScreen()),
+        GoRoute(path: '/', builder: (_, _) => const HomeShell()),
         GoRoute(
           path: '/card/:id',
           builder: (_, state) =>

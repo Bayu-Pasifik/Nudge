@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nudge/app.dart';
 import 'package:nudge/core/db/database.dart';
 import 'package:nudge/core/db/providers.dart';
@@ -15,6 +16,7 @@ Future<AppDatabase> pumpNudge(
   WidgetTester tester, {
   InMemoryNotificationGateway? gateway,
   Map<String, Object>? prefsValues,
+  bool startOnBoards = true,
 }) async {
   final db = AppDatabase(NativeDatabase.memory());
   addTearDown(db.close);
@@ -32,5 +34,9 @@ Future<AppDatabase> pumpNudge(
     ),
   );
   await tester.pumpAndSettle();
+  if (startOnBoards) {
+    await tester.tap(find.byKey(const Key('nav-boards')));
+    await tester.pumpAndSettle();
+  }
   return db;
 }
