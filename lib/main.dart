@@ -22,6 +22,8 @@ import 'core/nag/nag_scheduler.dart';
 import 'core/nag/notification_gateway.dart';
 import 'core/nag/providers.dart';
 import 'core/settings/prefs.dart';
+import 'core/widget/home_widget_sync.dart';
+import 'package:home_widget/home_widget.dart';
 import 'core/sync/supabase_remote.dart';
 import 'core/sync/sync_providers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -45,7 +47,12 @@ Future<void> nudgeNotificationBackground(NotificationResponse r) async {
   try {
     await handleNagAction(
       repo,
-      NagScheduler(repo, gateway, pausedUntil: () => readPausedUntil(prefs)),
+      NagScheduler(
+        repo,
+        gateway,
+        pausedUntil: () => readPausedUntil(prefs),
+        onPinned: updateHomeWidget,
+      ),
       action,
       payload,
     );
@@ -157,6 +164,21 @@ Future<void> main() async {
         payload != null &&
         nagActionFrom(launch) == NagAction.open) {
       container.read(openCardProvider.notifier).open(payload.cardId);
+    }
+  }
+
+  if (Platform.isAndroid) {
+    // Home screen widget: the tick button runs in the background, a title tap
+    // opens the card.
+    await HomeWidget.registerInteractivityCallback(widgetBackgroundCallback);
+    HomeWidget.widgetClicked.listen((uri) {
+      final id = cardIdFromWidgetUri(uri);
+      if (id != null) container.read(openCardProvider.notifier).open(id);
+    });
+    final launched =
+        cardIdFromWidgetUri(await HomeWidget.initiallyLaunchedFromHomeWidget());
+    if (launched != null) {
+      container.read(openCardProvider.notifier).open(launched);
     }
   }
 

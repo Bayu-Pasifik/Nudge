@@ -17,6 +17,7 @@ class NagScheduler {
     this.perReminderLimit = 48,
     this.maxTotal = 200,
     this.pausedUntil,
+    this.onPinned,
   }) : _now = clock ?? DateTime.now;
 
   final Repository repo;
@@ -31,6 +32,9 @@ class NagScheduler {
 
   /// "Jeda semua pengingat": nothing fires before this time.
   final DateTime? Function()? pausedUntil;
+
+  /// Called with the pinned cards after every rebuild (feeds the home widget).
+  final Future<void> Function(List<StickyInfo> pinned)? onPinned;
 
   Future<void> _chain = Future.value();
 
@@ -85,6 +89,7 @@ class NagScheduler {
 
   Future<void> _syncSticky() async {
     final pinned = await repo.pinnedStickies();
+    await onPinned?.call(pinned);
     await gateway.syncSticky([
       for (final s in pinned.take(maxSticky))
         StickyNote(

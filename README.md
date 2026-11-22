@@ -19,7 +19,8 @@ Dokumen produk ada di [`docs/`](docs): [PRD](docs/PRD.md), [STYLE](docs/STYLE.md
 | Login (email+password, magic link, reset), Pengaturan, tema | Selesai, teruji dengan backend auth tiruan |
 | Skema Supabase, RLS, trigger, grants | Teruji di Supabase asli: 20 pemeriksaan (`tool/live_check.dart`) |
 | Sync dua perangkat lewat Supabase asli + realtime | Teruji di emulator (`integration_test/e2e_supabase_test.dart`) |
-| Widget layar utama Android, sticky window desktop, tray | Lihat `docs/TASKS.md` |
+| Widget layar utama Android (kartu ter-pin + tombol centang) | Teruji di emulator: widget ditambahkan, tombol centang menyelesaikan kartu (`integration_test/e2e_widget_test.dart` + `tool/drive_widget.ps1`) |
+| Windows: tray, close-to-tray, mode sticky, toast | Suite lolos di Windows; tombol toast belum diuji |
 | iOS | Belum (butuh Mac + akun Apple Developer) |
 
 ## Menjalankan

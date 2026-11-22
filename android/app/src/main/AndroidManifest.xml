@@ -41,6 +41,25 @@
         <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
             android:exported="false"/>
+        <!-- Sticky-note home screen widget. -->
+        <receiver
+            android:name=".NudgeWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/nudge_widget_info"/>
+        </receiver>
+        <!-- Widget tick button: runs a Dart callback without opening the app. -->
+        <receiver
+            android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="es.antonborri.home_widget.action.BACKGROUND"/>
+            </intent-filter>
+        </receiver>
         <!-- Handles Selesai/Tunda button presses (runs a background isolate). -->
         <receiver
             android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver"
@@ -57,8 +76,9 @@
         </receiver>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
-        <meta-data
-            android:name="flutterEmbedding"
+        <!-- Widget links (nudge://...) are handled in Dart, not by the router. -->
+        <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
+        <meta-data android:name="flutterEmbedding"
             android:value="2" />
     </application>
     <!-- Required to query activities that can process text, see:

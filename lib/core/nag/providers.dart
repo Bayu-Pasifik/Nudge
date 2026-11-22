@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:drift/drift.dart' show TableUpdateQuery;
 import 'package:flutter/widgets.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../db/providers.dart';
 import '../settings/prefs.dart';
+import '../widget/home_widget_sync.dart';
 import 'local_notifications_gateway.dart';
 import 'nag_scheduler.dart';
 import 'notification_gateway.dart';
@@ -22,6 +24,7 @@ final nagSchedulerProvider = Provider<NagScheduler>(
     // Read lazily at schedule time; avoids a provider cycle with the pause
     // notifier (which itself triggers rescheduling).
     pausedUntil: () => ref.read(pausedUntilProvider),
+    onPinned: Platform.isAndroid ? updateHomeWidget : null,
   ),
 );
 
