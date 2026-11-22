@@ -77,6 +77,27 @@ class NagScheduler {
 
     all.sort((x, y) => x.at.compareTo(y.at));
     await gateway.replaceAllNags(all.take(maxTotal).toList());
+    await _syncSticky();
+  }
+
+  /// At most this many sticky notes are shown (the shade gets crowded).
+  static const maxSticky = 6;
+
+  Future<void> _syncSticky() async {
+    final pinned = await repo.pinnedStickies();
+    await gateway.syncSticky([
+      for (final s in pinned.take(maxSticky))
+        StickyNote(
+          id: stickyNotificationId(s.open.card.id),
+          cardId: s.open.card.id,
+          title: s.open.card.title,
+          body: [
+            if (s.total > 0) '${s.done}/${s.total} selesai',
+            '${s.open.boardTitle} › ${s.open.listTitle}',
+          ].join(' · '),
+          colorName: s.open.card.stickyColor,
+        ),
+    ]);
   }
 
   String _body(ActiveReminder a, NagEvent e) {

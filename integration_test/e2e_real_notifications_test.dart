@@ -6,6 +6,10 @@ import 'package:nudge/core/nag/notification_gateway.dart';
 /// Uses the REAL Android notification plugin. Requires the notification
 /// permission to be granted beforehand:
 ///   adb shell pm grant com.bayu.nudge android.permission.POST_NOTIFICATIONS
+/// Only runs with --dart-define=NUDGE_E2E=true (needs a real device and, for
+/// button presses, tool/drive_notification_actions.ps1).
+const _e2e = bool.fromEnvironment('NUDGE_E2E');
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -48,5 +52,5 @@ void main() {
       expect(active, isNot(contains('Nudge uji #2')),
           reason: 'cancelled nags must never fire');
     });
-  });
+  }, skip: !_e2e);
 }

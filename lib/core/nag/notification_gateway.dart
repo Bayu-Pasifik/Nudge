@@ -30,21 +30,52 @@ class NagNotification {
   String get payload => jsonEncode({'t': 'nag', 'r': reminderId, 'c': cardId});
 }
 
+/// Payload carried by every Nudge notification. [isSticky] distinguishes the
+/// always-on pinned-card notifications from scheduled nags.
 class NagPayload {
-  const NagPayload(this.reminderId, this.cardId);
+  const NagPayload(this.reminderId, this.cardId, {this.isSticky = false});
   final String reminderId;
   final String cardId;
+  final bool isSticky;
 
   static NagPayload? parse(String? raw) {
     if (raw == null) return null;
     try {
       final m = jsonDecode(raw) as Map;
-      if (m['t'] != 'nag') return null;
-      return NagPayload(m['r'] as String, m['c'] as String);
-    } catch (_) {
-      return null;
-    }
+      switch (m['t']) {
+        case 'nag':
+          return NagPayload(m['r'] as String, m['c'] as String);
+        case 'sticky':
+          return NagPayload('', m['c'] as String, isSticky: true);
+      }
+    } catch (_) {}
+    return null;
   }
+}
+
+/// A pinned card shown as a persistent ("sticky note") notification.
+class StickyNote {
+  const StickyNote({
+    required this.id,
+    required this.cardId,
+    required this.title,
+    required this.body,
+    required this.colorName,
+  });
+
+  final int id;
+  final String cardId;
+  final String title;
+  final String body;
+  final String colorName;
+
+  String get payload => jsonEncode({'t': 'sticky', 'c': cardId});
+}
+
+/// Notification id for a sticky note. Offset keeps it clear of nag ids.
+int stickyNotificationId(String cardId) {
+  final h = cardId.codeUnits.fold<int>(7, (a, c) => (a * 31 + c) & 0xFFFFF);
+  return 2000000000 + h;
 }
 
 /// What the user pressed on a notification.
@@ -57,6 +88,10 @@ abstract class NotificationGateway {
   Future<void> replaceAllNags(List<NagNotification> notifications);
 
   Future<void> cancelAllNags();
+
+  /// Makes the set of persistent sticky-note notifications equal [notes]:
+  /// shows/updates those, removes any others.
+  Future<void> syncSticky(List<StickyNote> notes);
 
   /// Pending nags (for diagnostics and tests).
   Future<List<NagNotification>> pendingNags();

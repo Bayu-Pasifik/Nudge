@@ -6,6 +6,16 @@ import 'database.dart';
 
 const _uuid = Uuid();
 
+/// A pinned card with its checklist progress.
+class StickyInfo {
+  const StickyInfo({required this.open, required this.items});
+  final OpenCard open;
+  final List<ChecklistItem> items;
+
+  int get total => items.length;
+  int get done => items.where((i) => i.done).length;
+}
+
 /// An unfinished card plus where it lives.
 class OpenCard {
   const OpenCard({
@@ -41,6 +51,16 @@ class Repository {
 
   final AppDatabase db;
   final DateTime Function() _now;
+
+  /// Removes every row of every table (used when signing out, so the next
+  /// account never sees this one's data).
+  Future<void> clearAllData() async {
+    await db.transaction(() async {
+      for (final t in db.allTables) {
+        await db.delete(t).go();
+      }
+    });
+  }
 
   // ---------------------------------------------------------------- boards
 
@@ -403,6 +423,54 @@ class Repository {
               ),
           ],
         );
+  }
+
+  /// Pinned, unfinished cards with checklist progress (sticky notes).
+  Future<List<StickyInfo>> pinnedStickies() async {
+    final q = db.select(db.cards).join([
+      innerJoin(db.lists, db.lists.id.equalsExp(db.cards.listId)),
+      innerJoin(db.boards, db.boards.id.equalsExp(db.cards.boardId)),
+    ])
+      ..where(db.cards.pinned.equals(true) &
+          db.cards.deletedAt.isNull() &
+          db.cards.archivedAt.isNull() &
+          db.cards.completedAt.isNull() &
+          db.boards.deletedAt.isNull() &
+          db.boards.archivedAt.isNull() &
+          db.lists.deletedAt.isNull())
+      ..orderBy([OrderingTerm.desc(db.cards.updatedAt)]);
+    final rows = await q.get();
+    final out = <StickyInfo>[];
+    for (final r in rows) {
+      final card = r.readTable(db.cards);
+      final items = await (db.select(db.checklistItems)
+            ..where((i) => i.cardId.equals(card.id) & i.deletedAt.isNull())
+            ..orderBy([(i) => OrderingTerm.asc(i.position)]))
+          .get();
+      out.add(
+        StickyInfo(
+          open: OpenCard(
+            card: card,
+            listTitle: r.readTable(db.lists).title,
+            boardTitle: r.readTable(db.boards).title,
+          ),
+          items: items,
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// Live version of [pinnedStickies] for the desktop sticky window.
+  Stream<List<StickyInfo>> watchPinnedStickies() async* {
+    yield await pinnedStickies();
+    yield* db
+        .tableUpdates(
+          TableUpdateQuery.onAllTables(
+            [db.cards, db.checklistItems, db.lists, db.boards],
+          ),
+        )
+        .asyncMap((_) => pinnedStickies());
   }
 
   // -------------------------------------------------------------- reminders

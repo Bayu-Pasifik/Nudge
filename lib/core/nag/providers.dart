@@ -77,7 +77,15 @@ class NagCoordinator with WidgetsBindingObserver {
 final nagCoordinatorProvider = Provider<NagCoordinator>((ref) {
   final db = ref.watch(appDatabaseProvider);
   final updates = db
-      .tableUpdates(TableUpdateQuery.onAllTables([db.reminders, db.cards]))
+      .tableUpdates(
+        TableUpdateQuery.onAllTables([
+          db.reminders,
+          db.cards,
+          db.checklistItems, // sticky notes show checklist progress
+          db.lists,
+          db.boards, // titles appear in notification bodies
+        ]),
+      )
       .map((_) {});
   final c = NagCoordinator(ref.watch(nagSchedulerProvider), updates);
   ref.onDispose(c.dispose);

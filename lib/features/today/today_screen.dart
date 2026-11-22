@@ -31,6 +31,12 @@ class TodayScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Hari ini'),
         actions: [
+          IconButton(
+            key: const Key('open-settings'),
+            tooltip: 'Pengaturan',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => context.push('/settings'),
+          ),
           PopupMenuButton<String>(
             key: const Key('pause-menu'),
             icon: Icon(paused == null ? Icons.notifications_active_outlined : Icons.notifications_paused),

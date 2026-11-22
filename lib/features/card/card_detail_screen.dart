@@ -123,6 +123,15 @@ class _CardDetailScreenState extends ConsumerState<CardDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         actions: [
+          IconButton(
+            key: const Key('pin-toggle'),
+            tooltip: card.pinned ? 'Lepas pin' : 'Pin sebagai sticky note',
+            icon: Icon(
+              card.pinned ? Icons.push_pin : Icons.push_pin_outlined,
+              color: card.pinned ? t.accent : null,
+            ),
+            onPressed: () => _repo.updateCard(card.id, pinned: !card.pinned),
+          ),
           PopupMenuButton<String>(
             key: const Key('card-menu'),
             onSelected: (v) async {
@@ -245,6 +254,36 @@ class _CardDetailScreenState extends ConsumerState<CardDetailScreen> {
               ],
             ),
           ),
+          if (card.pinned)
+            _Section(
+              icon: Icons.sticky_note_2_outlined,
+              title: 'Warna sticky',
+              child: Wrap(
+                spacing: AppSpacing.md,
+                children: [
+                  for (final c in StickyColors.all)
+                    GestureDetector(
+                      key: Key('sticky-${c.name}'),
+                      onTap: () =>
+                          _repo.updateCard(card.id, stickyColor: c.name),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: c.fill,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: card.stickyColor == c.name
+                                ? t.textPrimary
+                                : c.edge,
+                            width: card.stickyColor == c.name ? 2.5 : 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           _Section(
             icon: Icons.notifications_active_outlined,
             title: 'Pengingat',

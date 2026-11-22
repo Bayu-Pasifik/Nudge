@@ -3,7 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:nudge/app.dart';
+import 'package:nudge/core/auth/auth_backend.dart';
+import 'package:nudge/core/auth/auth_providers.dart';
 import 'package:nudge/core/db/database.dart';
+import 'package:nudge/core/sync/fake_remote.dart';
+import 'package:nudge/core/sync/sync_providers.dart';
 import 'package:nudge/core/db/providers.dart';
 import 'package:nudge/core/nag/local_notifications_gateway.dart';
 import 'package:nudge/core/nag/providers.dart';
@@ -17,6 +21,8 @@ Future<AppDatabase> pumpNudge(
   InMemoryNotificationGateway? gateway,
   Map<String, Object>? prefsValues,
   bool startOnBoards = true,
+  FakeAuthBackend? auth,
+  FakeRemote? remote,
 }) async {
   final db = AppDatabase(NativeDatabase.memory());
   addTearDown(db.close);
@@ -26,6 +32,8 @@ Future<AppDatabase> pumpNudge(
     ProviderScope(
       overrides: [
         sharedPrefsProvider.overrideWithValue(prefs),
+        authBackendProvider.overrideWithValue(auth),
+        remoteProvider.overrideWithValue(remote),
         appDatabaseProvider.overrideWithValue(db),
         notificationGatewayProvider
             .overrideWithValue(gateway ?? InMemoryNotificationGateway()),
@@ -34,7 +42,7 @@ Future<AppDatabase> pumpNudge(
     ),
   );
   await tester.pumpAndSettle();
-  if (startOnBoards) {
+  if (startOnBoards && (auth == null || auth.userId != null)) {
     await tester.tap(find.byKey(const Key('nav-boards')));
     await tester.pumpAndSettle();
   }

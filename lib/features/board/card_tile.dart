@@ -24,8 +24,11 @@ class CardTile extends ConsumerWidget {
     final status = dueStatus(card.dueAt, completed: done);
     final doneItems = checklist.where((i) => i.done).length;
 
+    // Pinned cards look like a sticky note: pastel fill with dark text.
+    final sticky = card.pinned ? StickyColors.byName(card.stickyColor) : null;
+    const stickyText = Color(0xFF1E1B16);
     return Material(
-      color: t.bgSurface,
+      color: sticky?.fill ?? t.bgSurface,
       elevation: 0,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: InkWell(
@@ -34,7 +37,9 @@ class CardTile extends ConsumerWidget {
         child: Container(
           decoration: BoxDecoration(
             border: Border.all(
-              color: status == DueStatus.overdue ? t.danger : t.border,
+              color: status == DueStatus.overdue
+                  ? t.danger
+                  : (sticky?.edge ?? t.border),
               width: status == DueStatus.overdue ? 1.5 : 1,
             ),
             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -74,7 +79,9 @@ class CardTile extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 15,
                           height: 22 / 15,
-                          color: done ? t.textSecondary : t.textPrimary,
+                          color: done
+                              ? t.textSecondary
+                              : (sticky != null ? stickyText : t.textPrimary),
                           decoration: done ? TextDecoration.lineThrough : null,
                         ),
                       ),

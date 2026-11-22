@@ -6,6 +6,7 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
 
+import '../theme/tokens.dart' show StickyColors;
 import 'notification_gateway.dart';
 
 const _actionDone = 'done';
@@ -151,9 +152,50 @@ class LocalNotificationsGateway implements NotificationGateway {
   Future<void> cancelAllNags() async {
     final pending = await _plugin.pendingNotificationRequests();
     for (final p in pending) {
-      if (NagPayload.parse(p.payload) != null) {
+      final payload = NagPayload.parse(p.payload);
+      if (payload != null && !payload.isSticky) {
         await _plugin.cancel(id: p.id);
       }
+    }
+  }
+
+  @override
+  Future<void> syncSticky(List<StickyNote> notes) async {
+    final wanted = {for (final n in notes) n.id};
+    final active = await _plugin.getActiveNotifications();
+    for (final a in active) {
+      final id = a.id;
+      final payload = NagPayload.parse(a.payload);
+      if (id != null && payload != null && payload.isSticky && !wanted.contains(id)) {
+        await _plugin.cancel(id: id);
+      }
+    }
+    for (final n in notes) {
+      final accent = StickyColors.byName(n.colorName);
+      await _plugin.show(
+        id: n.id,
+        title: n.title,
+        body: n.body,
+        payload: n.payload,
+        notificationDetails: NotificationDetails(
+          android: AndroidNotificationDetails(
+            'nudge_sticky',
+            'Sticky note',
+            channelDescription: 'Tugas ter-pin yang selalu terlihat',
+            importance: Importance.low,
+            priority: Priority.low,
+            ongoing: true, // cannot be swiped away
+            autoCancel: false,
+            onlyAlertOnce: true,
+            playSound: false,
+            enableVibration: false,
+            showWhen: false,
+            category: AndroidNotificationCategory.status,
+            color: accent.edge,
+            actions: const [AndroidNotificationAction(_actionDone, 'Selesai')],
+          ),
+        ),
+      );
     }
   }
 
@@ -210,6 +252,8 @@ class NoopNotificationGateway implements NotificationGateway {
   @override
   Future<void> cancelAllNags() async {}
   @override
+  Future<void> syncSticky(List<StickyNote> notes) async {}
+  @override
   Future<bool> notificationsAllowed() async => false;
   @override
   Future<List<NagNotification>> pendingNags() async => const [];
@@ -222,7 +266,12 @@ class NoopNotificationGateway implements NotificationGateway {
 /// In-memory gateway used by tests: records what would have been scheduled.
 class InMemoryNotificationGateway implements NotificationGateway {
   List<NagNotification> scheduled = [];
+  List<StickyNote> stickies = [];
   bool allowed = true;
+
+  @override
+  Future<void> syncSticky(List<StickyNote> notes) async =>
+      stickies = List.of(notes);
 
   @override
   Future<void> replaceAllNags(List<NagNotification> notifications) async {

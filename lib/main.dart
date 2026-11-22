@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'app.dart';
+import 'core/auth/auth_backend.dart';
+import 'core/auth/auth_providers.dart';
+import 'core/config.dart';
 import 'core/db/database.dart';
 import 'core/db/providers.dart';
 import 'core/db/repository.dart';
@@ -15,6 +18,9 @@ import 'core/nag/nag_scheduler.dart';
 import 'core/nag/notification_gateway.dart';
 import 'core/nag/providers.dart';
 import 'core/settings/prefs.dart';
+import 'core/sync/supabase_remote.dart';
+import 'core/sync/sync_providers.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Runs in a background isolate when the user presses Selesai/Tunda on a
@@ -50,9 +56,23 @@ Future<void> main() async {
   final LocalNotificationsGateway? local =
       Platform.isAndroid ? LocalNotificationsGateway() : null;
   final prefs = await SharedPreferences.getInstance();
+  SupabaseClient? supabase;
+  if (AppConfig.hasSupabase) {
+    await Supabase.initialize(
+      url: AppConfig.supabaseUrl,
+      publishableKey: AppConfig.supabaseKey,
+    );
+    supabase = Supabase.instance.client;
+  }
   final container = ProviderContainer(
     overrides: [
       sharedPrefsProvider.overrideWithValue(prefs),
+      authBackendProvider.overrideWithValue(
+        supabase == null ? null : SupabaseAuthBackend(supabase),
+      ),
+      remoteProvider.overrideWithValue(
+        supabase == null ? null : SupabaseRemote(supabase),
+      ),
       if (local != null) notificationGatewayProvider.overrideWithValue(local),
     ],
   );

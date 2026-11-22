@@ -1,0 +1,8 @@
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          # Microsecond timestamps: sync compares `updated_at` and must tell
+          # two quick edits apart (integer storage only has 1 s resolution).
+          store_date_time_values_as_text: true

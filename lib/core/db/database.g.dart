@@ -4706,6 +4706,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     cardLabels,
     reminders,
   ];
+  @override
+  DriftDatabaseOptions get options =>
+      const DriftDatabaseOptions(storeDateTimeAsText: true);
 }
 
 typedef $$BoardsTableCreateCompanionBuilder = BoardsCompanion Function({

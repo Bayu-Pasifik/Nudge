@@ -1,7 +1,13 @@
 # Drives the notification shade on an emulator: presses "Tunda 10 mnt" on the
 # first Nudge notification, then "Selesai" on the next one.
 # Usage: powershell -File tool/drive_notification_actions.ps1 [-Serial emulator-5554]
-param([string]$Serial = 'emulator-5554')
+param(
+  [string]$Serial = 'emulator-5554',
+  # Button labels to press in order (waits 8s between presses).
+  [string[]]$Steps = @('Tunda 10', 'Selesai'),
+  # Print the notification flags of a notification title before pressing.
+  [string]$ShowFlagsFor = ''
+)
 
 $adb = 'D:\program\Android SDK\platform-tools\adb.exe'
 $dump = Join-Path $env:TEMP 'nudge_ui.xml'
@@ -31,6 +37,15 @@ function Press-Action([string]$text, [int]$timeoutSec = 120) {
     Start-Sleep -Seconds 2
     # Layout animates while the shade opens: only tap once two dumps agree.
     $a = Find-Button $text
+    if (-not $a) {
+      # Low-priority notifications (sticky notes) are collapsed: expand first.
+      $e = Find-Button 'Expand'
+      if ($e) {
+        & $adb -s $Serial shell input tap $e.X $e.Y | Out-Null
+        Start-Sleep -Seconds 1
+        $a = Find-Button $text
+      }
+    }
     Start-Sleep -Milliseconds 700
     $b = Find-Button $text
     if ($a -and $b -and $a.X -eq $b.X -and $a.Y -eq $b.Y) {
@@ -47,8 +62,14 @@ function Press-Action([string]$text, [int]$timeoutSec = 120) {
   return $false
 }
 
-if (-not (Press-Action 'Tunda 10')) { exit 1 }
-# Give the app time to re-schedule, then wait for the second notification.
-Start-Sleep -Seconds 8
-if (-not (Press-Action 'Selesai')) { exit 1 }
+foreach ($step in $Steps) {
+  if ($ShowFlagsFor) {
+    Start-Sleep -Seconds 12
+    $rec = & $adb -s $Serial shell dumpsys notification --noredact | Select-String -Pattern "android.title=String \($ShowFlagsFor\)" -Context 30,0 | Select-Object -First 1
+    $flags = $rec.Context.PreContext | Select-String 'flags=' | Select-Object -Last 1
+    Write-Host "flags for '$ShowFlagsFor': $flags"
+  }
+  if (-not (Press-Action $step)) { exit 1 }
+  Start-Sleep -Seconds 8
+}
 Write-Host 'driver done'

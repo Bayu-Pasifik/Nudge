@@ -11,6 +11,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// Needs an external driver (tool/drive_notification_actions.ps1) that presses
 /// "Tunda 10 mnt" then "Selesai" on the real notifications via adb.
+/// Only runs with --dart-define=NUDGE_E2E=true (needs a real device and, for
+/// button presses, tool/drive_notification_actions.ps1).
+const _e2e = bool.fromEnvironment('NUDGE_E2E');
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -100,5 +104,5 @@ void main() {
       print('E2E: Selesai OK');
       await db.close();
     });
-  });
+  }, skip: !_e2e);
 }
