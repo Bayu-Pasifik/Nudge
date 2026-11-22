@@ -6,6 +6,7 @@ import 'package:nudge/app.dart';
 import 'package:nudge/core/auth/auth_backend.dart';
 import 'package:nudge/core/auth/auth_providers.dart';
 import 'package:nudge/core/db/database.dart';
+import 'package:nudge/core/platform/system_settings.dart';
 import 'package:nudge/core/desktop/sticky_mode.dart';
 import 'package:nudge/core/sync/fake_remote.dart';
 import 'package:nudge/core/sync/sync_providers.dart';
@@ -25,6 +26,7 @@ Future<AppDatabase> pumpNudge(
   FakeAuthBackend? auth,
   FakeRemote? remote,
   WindowController? window,
+  SystemSettingsLauncher? settings,
 }) async {
   final db = AppDatabase(NativeDatabase.memory());
   addTearDown(db.close);
@@ -36,6 +38,7 @@ Future<AppDatabase> pumpNudge(
         sharedPrefsProvider.overrideWithValue(prefs),
         authBackendProvider.overrideWithValue(auth),
         if (window != null) windowControllerProvider.overrideWithValue(window),
+        if (settings != null) systemSettingsProvider.overrideWithValue(settings),
         remoteProvider.overrideWithValue(remote),
         appDatabaseProvider.overrideWithValue(db),
         notificationGatewayProvider

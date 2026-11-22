@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -6,6 +8,8 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../../core/auth/auth_providers.dart';
 import '../../core/db/providers.dart';
 import '../../core/export/export_service.dart';
+import '../../core/nag/providers.dart';
+import '../../core/platform/system_settings.dart';
 import '../../core/settings/nag_defaults.dart';
 import '../../core/settings/theme_mode.dart';
 import '../../core/sync/sync_engine.dart';
@@ -99,6 +103,11 @@ class SettingsScreen extends ConsumerWidget {
               },
             ),
           ],
+          if (Platform.isAndroid) ...[
+            const SizedBox(height: AppSpacing.lg),
+            const _Header('Agar pengingat selalu bunyi'),
+            const _ReliabilityGuide(),
+          ],
           const SizedBox(height: AppSpacing.lg),
           const _Header('Pengingat default'),
           const _NagDefaultsSection(),
@@ -155,6 +164,104 @@ class SettingsScreen extends ConsumerWidget {
 
   static String _hm(DateTime d) =>
       '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+}
+
+/// Android: the three settings that decide whether reminders ring when the app
+/// is closed.
+class _ReliabilityGuide extends ConsumerStatefulWidget {
+  const _ReliabilityGuide();
+
+  @override
+  ConsumerState<_ReliabilityGuide> createState() => _ReliabilityGuideState();
+}
+
+class _ReliabilityGuideState extends ConsumerState<_ReliabilityGuide>
+    with WidgetsBindingObserver {
+  bool? _allowed;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _check();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Back from the system settings screen: re-read the permission.
+    if (state == AppLifecycleState.resumed) _check();
+  }
+
+  Future<void> _check() async {
+    final ok = await ref.read(notificationGatewayProvider).notificationsAllowed();
+    if (mounted) setState(() => _allowed = ok);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final launcher = ref.read(systemSettingsProvider);
+    final allowed = _allowed;
+    return Column(
+      children: [
+        ListTile(
+          key: const Key('guide-notifications'),
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(
+            allowed == false ? Icons.notifications_off : Icons.notifications_active,
+            color: allowed == false ? t.danger : t.success,
+          ),
+          title: const Text('Notifikasi'),
+          subtitle: Text(
+            allowed == false
+                ? 'Dimatikan. Pengingat tidak akan berbunyi.'
+                : 'Aktif',
+          ),
+          trailing: TextButton(
+            key: const Key('open-notification-settings'),
+            onPressed: launcher.openNotificationSettings,
+            child: const Text('Buka'),
+          ),
+        ),
+        ListTile(
+          key: const Key('guide-battery'),
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.battery_saver, color: t.warning),
+          title: const Text('Penghemat baterai'),
+          subtitle: const Text(
+            'Pilih Nudge lalu "Tidak dibatasi" supaya pengingat tetap jalan '
+            'saat app ditutup.',
+          ),
+          trailing: TextButton(
+            key: const Key('open-battery-settings'),
+            onPressed: launcher.openBatteryOptimization,
+            child: const Text('Buka'),
+          ),
+        ),
+        ListTile(
+          key: const Key('guide-brand'),
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.phone_android, color: t.textSecondary),
+          title: const Text('Xiaomi, Oppo, Vivo, Samsung'),
+          subtitle: const Text(
+            'Aktifkan "Autostart" / "Jalankan di latar belakang" untuk Nudge '
+            'di pengaturan app.',
+          ),
+          trailing: TextButton(
+            key: const Key('open-app-details'),
+            onPressed: launcher.openAppDetails,
+            child: const Text('Buka'),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Defaults applied to every newly created reminder.

@@ -52,6 +52,7 @@ dependencies:
   launch_at_startup: ^0.5.1
   local_notifier: ^0.1.6
   home_widget: ^0.10.0
+  android_intent_plus: ^6.1.0
 
 dev_dependencies:
   flutter_test:
