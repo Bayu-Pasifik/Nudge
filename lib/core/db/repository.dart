@@ -6,6 +6,33 @@ import 'database.dart';
 
 const _uuid = Uuid();
 
+/// An unfinished card plus where it lives.
+class OpenCard {
+  const OpenCard({
+    required this.card,
+    required this.listTitle,
+    required this.boardTitle,
+  });
+  final TodoCard card;
+  final String listTitle;
+  final String boardTitle;
+}
+
+/// A reminder together with the card and where it lives, for notifications
+/// and the Today screen.
+class ActiveReminder {
+  const ActiveReminder({
+    required this.reminder,
+    required this.card,
+    required this.listTitle,
+    required this.boardTitle,
+  });
+  final Reminder reminder;
+  final TodoCard card;
+  final String listTitle;
+  final String boardTitle;
+}
+
 /// Local-first data access. UI reads streams from the local DB; every write
 /// marks the row `dirty` so the sync layer can push it to Supabase later.
 class Repository {
@@ -351,6 +378,169 @@ class Repository {
           (exclude == null ? const Constant(true) : c.id.equals(exclude).not()))
       ..orderBy([(c) => OrderingTerm.asc(c.position)]);
     return q.get();
+  }
+
+  /// Every unfinished, live card across all boards (for the Today screen).
+  Stream<List<OpenCard>> watchOpenCards() {
+    final q = db.select(db.cards).join([
+      innerJoin(db.lists, db.lists.id.equalsExp(db.cards.listId)),
+      innerJoin(db.boards, db.boards.id.equalsExp(db.cards.boardId)),
+    ])
+      ..where(db.cards.deletedAt.isNull() &
+          db.cards.archivedAt.isNull() &
+          db.cards.completedAt.isNull() &
+          db.boards.deletedAt.isNull() &
+          db.boards.archivedAt.isNull() &
+          db.lists.deletedAt.isNull())
+      ..orderBy([OrderingTerm.asc(db.cards.dueAt)]);
+    return q.watch().map(
+          (rows) => [
+            for (final r in rows)
+              OpenCard(
+                card: r.readTable(db.cards),
+                listTitle: r.readTable(db.lists).title,
+                boardTitle: r.readTable(db.boards).title,
+              ),
+          ],
+        );
+  }
+
+  // -------------------------------------------------------------- reminders
+
+  Stream<List<Reminder>> watchReminders(String cardId) {
+    final q = db.select(db.reminders)
+      ..where((r) => r.cardId.equals(cardId) & r.deletedAt.isNull())
+      ..orderBy([(r) => OrderingTerm.asc(r.remindAt)]);
+    return q.watch();
+  }
+
+  Future<String> addReminder(
+    String cardId,
+    DateTime remindAt, {
+    bool nagEnabled = true,
+    int intervalMinutes = 10,
+    int? maxCount,
+    String? escalationJson,
+    int? quietStartMinute,
+    int? quietEndMinute,
+    String? repeatRule,
+  }) async {
+    final id = _uuid.v4();
+    final now = _now();
+    await db.into(db.reminders).insert(
+          RemindersCompanion.insert(
+            id: id,
+            cardId: cardId,
+            remindAt: remindAt,
+            createdAt: now,
+            updatedAt: now,
+            nagEnabled: Value(nagEnabled),
+            nagIntervalMinutes: Value(intervalMinutes),
+            nagMaxCount: Value(maxCount),
+            escalation: Value(escalationJson),
+            quietStartMinute: Value(quietStartMinute),
+            quietEndMinute: Value(quietEndMinute),
+            repeatRule: Value(repeatRule),
+          ),
+        );
+    return id;
+  }
+
+  Future<void> updateReminder(
+    String id, {
+    DateTime? remindAt,
+    bool? nagEnabled,
+    int? intervalMinutes,
+    Value<int?> maxCount = const Value.absent(),
+    Value<String?> escalationJson = const Value.absent(),
+    Value<int?> quietStartMinute = const Value.absent(),
+    Value<int?> quietEndMinute = const Value.absent(),
+    Value<String?> repeatRule = const Value.absent(),
+  }) {
+    return (db.update(db.reminders)..where((r) => r.id.equals(id))).write(
+      RemindersCompanion(
+        remindAt: remindAt == null ? const Value.absent() : Value(remindAt),
+        nagEnabled: nagEnabled == null ? const Value.absent() : Value(nagEnabled),
+        nagIntervalMinutes:
+            intervalMinutes == null ? const Value.absent() : Value(intervalMinutes),
+        nagMaxCount: maxCount,
+        escalation: escalationJson,
+        quietStartMinute: quietStartMinute,
+        quietEndMinute: quietEndMinute,
+        repeatRule: repeatRule,
+        // Editing re-arms the reminder.
+        snoozedUntil: const Value(null),
+        state: const Value('scheduled'),
+        updatedAt: Value(_now()),
+        dirty: const Value(true),
+      ),
+    );
+  }
+
+  Future<void> deleteReminder(String id) {
+    final now = _now();
+    return (db.update(db.reminders)..where((r) => r.id.equals(id))).write(
+      RemindersCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        dirty: const Value(true),
+      ),
+    );
+  }
+
+  /// Restart the nag sequence from [until] (user pressed "Tunda").
+  Future<void> snoozeCardReminders(String cardId, DateTime until) {
+    return (db.update(db.reminders)
+          ..where((r) =>
+              r.cardId.equals(cardId) &
+              r.deletedAt.isNull() &
+              r.state.equals('done').not()))
+        .write(
+      RemindersCompanion(
+        snoozedUntil: Value(until),
+        state: const Value('scheduled'),
+        updatedAt: Value(_now()),
+        dirty: const Value(true),
+      ),
+    );
+  }
+
+  Future<void> setReminderState(String id, String state) {
+    return (db.update(db.reminders)..where((r) => r.id.equals(id))).write(
+      RemindersCompanion(
+        state: Value(state),
+        updatedAt: Value(_now()),
+        dirty: const Value(true),
+      ),
+    );
+  }
+
+  /// Reminders that still need attention: not done, on a live, unfinished card.
+  Future<List<ActiveReminder>> activeReminders() => _activeRemindersQuery().get();
+
+  Stream<List<ActiveReminder>> watchActiveReminders() =>
+      _activeRemindersQuery().watch();
+
+  Selectable<ActiveReminder> _activeRemindersQuery() {
+    final q = db.select(db.reminders).join([
+      innerJoin(db.cards, db.cards.id.equalsExp(db.reminders.cardId)),
+      innerJoin(db.lists, db.lists.id.equalsExp(db.cards.listId)),
+      innerJoin(db.boards, db.boards.id.equalsExp(db.cards.boardId)),
+    ])
+      ..where(db.reminders.deletedAt.isNull() &
+          db.reminders.state.equals('done').not() &
+          db.cards.deletedAt.isNull() &
+          db.cards.archivedAt.isNull() &
+          db.cards.completedAt.isNull())
+      ..orderBy([OrderingTerm.asc(db.reminders.remindAt)]);
+    return q.map(
+      (row) => ActiveReminder(
+        reminder: row.readTable(db.reminders),
+        card: row.readTable(db.cards),
+        listTitle: row.readTable(db.lists).title,
+        boardTitle: row.readTable(db.boards).title,
+      ),
+    );
   }
 
   // -------------------------------------------------------------- checklist

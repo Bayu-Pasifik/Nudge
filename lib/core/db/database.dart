@@ -1,4 +1,4 @@
-﻿import 'package:drift/drift.dart';
+import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
 part 'database.g.dart';
@@ -100,7 +100,15 @@ class Reminders extends Table with SyncColumns {
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
-      : super(executor ?? driftDatabase(name: 'nudge'));
+      : super(
+          executor ??
+              driftDatabase(
+                name: 'nudge',
+                // Notification buttons run in a background isolate; share one
+                // connection so both isolates see the same data and streams.
+                native: const DriftNativeOptions(shareAcrossIsolates: true),
+              ),
+        );
 
   @override
   int get schemaVersion => 1;

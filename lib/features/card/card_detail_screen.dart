@@ -10,6 +10,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/util/format.dart';
 import '../boards/boards_screen.dart' show confirmDialog;
 import 'checklist_section.dart';
+import 'reminders_section.dart';
 
 class CardDetailScreen extends ConsumerStatefulWidget {
   const CardDetailScreen({super.key, required this.cardId});
@@ -243,6 +244,11 @@ class _CardDetailScreenState extends ConsumerState<CardDetailScreen> {
                   ),
               ],
             ),
+          ),
+          _Section(
+            icon: Icons.notifications_active_outlined,
+            title: 'Pengingat',
+            child: RemindersSection(card: card),
           ),
           _Section(
             icon: Icons.notes,

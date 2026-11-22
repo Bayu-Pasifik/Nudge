@@ -4,14 +4,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nudge/app.dart';
 import 'package:nudge/core/db/database.dart';
 import 'package:nudge/core/db/providers.dart';
+import 'package:nudge/core/nag/local_notifications_gateway.dart';
+import 'package:nudge/core/nag/providers.dart';
+import 'package:nudge/core/settings/prefs.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Pumps the app with a fresh in-memory DB.
-Future<AppDatabase> pumpNudge(WidgetTester tester) async {
+/// Pumps the app with a fresh in-memory DB and an in-memory notification
+/// gateway (so tests can assert what would have been scheduled).
+Future<AppDatabase> pumpNudge(
+  WidgetTester tester, {
+  InMemoryNotificationGateway? gateway,
+  Map<String, Object>? prefsValues,
+}) async {
   final db = AppDatabase(NativeDatabase.memory());
   addTearDown(db.close);
+  SharedPreferences.setMockInitialValues(prefsValues ?? {});
+  final prefs = await SharedPreferences.getInstance();
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [appDatabaseProvider.overrideWithValue(db)],
+      overrides: [
+        sharedPrefsProvider.overrideWithValue(prefs),
+        appDatabaseProvider.overrideWithValue(db),
+        notificationGatewayProvider
+            .overrideWithValue(gateway ?? InMemoryNotificationGateway()),
+      ],
       child: const NudgeApp(),
     ),
   );
