@@ -21,3 +21,26 @@ final boardsProvider = StreamProvider<List<Board>>(
 final boardProvider = StreamProvider.autoDispose.family<Board?, String>(
   (ref, id) => ref.watch(repositoryProvider).watchBoard(id),
 );
+
+final listsProvider =
+    StreamProvider.autoDispose.family<List<BoardList>, String>(
+  (ref, boardId) => ref.watch(repositoryProvider).watchLists(boardId),
+);
+
+final cardsProvider = StreamProvider.autoDispose.family<List<TodoCard>, String>(
+  (ref, boardId) => ref.watch(repositoryProvider).watchCards(boardId),
+);
+
+final cardProvider = StreamProvider.autoDispose.family<TodoCard?, String>(
+  (ref, id) => ref.watch(repositoryProvider).watchCard(id),
+);
+
+final checklistProvider =
+    StreamProvider.autoDispose.family<List<ChecklistItem>, String>(
+  (ref, cardId) => ref.watch(repositoryProvider).watchChecklist(cardId),
+);
+
+final boardChecklistProvider =
+    StreamProvider.autoDispose.family<List<ChecklistItem>, String>(
+  (ref, boardId) => ref.watch(repositoryProvider).watchBoardChecklist(boardId),
+);
