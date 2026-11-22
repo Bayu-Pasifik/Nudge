@@ -13,7 +13,10 @@ final _allCardsProvider = StreamProvider.autoDispose(
 );
 
 class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key});
+  const SearchScreen({super.key, this.focusNode});
+
+  /// Lets the shell move the cursor here (Ctrl+K).
+  final FocusNode? focusNode;
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -60,6 +63,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             child: TextField(
               key: const Key('search-field'),
               controller: _controller,
+              focusNode: widget.focusNode,
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
                 hintText: 'Cari judul, deskripsi, board…',
